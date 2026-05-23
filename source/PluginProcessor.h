@@ -31,11 +31,19 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
-    static constexpr int kScopeSize = 512;
-    const std::array<float, kScopeSize>& getScopeData() const noexcept { return scopeData; }
+    // Scope feed — written by the audio thread, drained by the UI thread.
+    // kScopeFifoSize is large enough to buffer ~185 ms at 44100 Hz so the
+    // 30 Hz UI timer always drains before it overflows.
+    static constexpr int kScopeSize     = 512;
+    static constexpr int kScopeFifoSize = 8192;
+
+    // Drains up to maxSamples from the FIFO into dest.
+    // Safe to call from the message thread only.
+    int drainScopeData (float* dest, int maxSamples) noexcept;
 
 private:
-    std::array<float, kScopeSize> scopeData {};
+    juce::AbstractFifo                    scopeFifo { kScopeFifoSize };
+    std::array<float, kScopeFifoSize>     scopeRing {};
 
     juce::AudioProcessorValueTreeState parameters;
     std::atomic<float>* freqParam = nullptr;

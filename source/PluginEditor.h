@@ -26,7 +26,7 @@ public:
     void resized() override;
 
 private:
-    void timerCallback() override { repaint(); }
+    void timerCallback() override;
 
     void drawJuceLogo      (juce::Graphics&);
     void drawDigitalDisplay(juce::Graphics&);
@@ -38,6 +38,10 @@ private:
     static float hzToAngle (float hz, float startAngle, float endAngle) noexcept;
 
     RingModAudioProcessor& audioProcessor;
+
+    // Snapshot populated by timerCallback from the lock-free FIFO.
+    // Only ever touched on the message thread — no synchronisation needed.
+    std::array<float, RingModAudioProcessor::kScopeSize> displayBuf {};
 
     GlowKnobLookAndFeel freqLAF { juce::Colour::fromRGB (0, 170, 200), juce::Colour::fromRGB (0, 240, 255) };
     GlowKnobLookAndFeel mixLAF  { juce::Colour::fromRGB (0, 155, 75),  juce::Colour::fromRGB (0, 255, 120) };

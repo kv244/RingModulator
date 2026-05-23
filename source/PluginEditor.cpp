@@ -107,6 +107,27 @@ RingModAudioProcessorEditor::~RingModAudioProcessorEditor()
     mixSlider.setLookAndFeel (nullptr);
 }
 
+void RingModAudioProcessorEditor::timerCallback()
+{
+    // Drain all available carrier samples from the processor's lock-free FIFO.
+    // We maintain a rolling window of kScopeSize samples in displayBuf by
+    // shifting old data left and appending new data on the right — entirely
+    // on the message thread, so no extra synchronisation is required here.
+    static constexpr int kN = RingModAudioProcessor::kScopeSize;
+    float temp[kN];
+    int got;
+
+    while ((got = audioProcessor.drainScopeData (temp, kN)) > 0)
+    {
+        const int keep = kN - got;
+        if (keep > 0)
+            std::memmove (displayBuf.data(), displayBuf.data() + got, (size_t) keep * sizeof (float));
+        std::memcpy (displayBuf.data() + keep, temp, (size_t) got * sizeof (float));
+    }
+
+    repaint();
+}
+
 float RingModAudioProcessorEditor::hzToAngle (float hz, float startAngle, float endAngle) noexcept
 {
     float proportion = std::pow ((hz - 20.0f) / (2000.0f - 20.0f), 0.3f);
@@ -211,9 +232,9 @@ void RingModAudioProcessorEditor::drawOscilloscope (juce::Graphics& g)
     g.drawText ("Carrier Buffer", box.withHeight (15.0f), juce::Justification::centred);
 
     auto wave = box.reduced (6.0f, 18.0f);
-    const auto& scope = audioProcessor.getScopeData();
+    const auto& scope = displayBuf;           // message-thread-only snapshot
     const int   N     = RingModAudioProcessor::kScopeSize;
-    const int   disp  = juce::jmin (N, 256); // show 256 samples
+    const int   disp  = juce::jmin (N, 256);
 
     juce::Path waveform;
     float midY  = wave.getCentreY();

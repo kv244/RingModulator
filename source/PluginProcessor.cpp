@@ -48,10 +48,20 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::dsp::ProcessContextReplacing<float> carrierContext (clippedCarrierBlock);
     carrierOsc.process (carrierContext);
 
+    // Push carrier samples into the lock-free scope FIFO.
+    // Only write as many samples as the FIFO currently has room for;
+    // if the UI is slow the excess is silently dropped rather than blocking.
     {
         auto* src = carrierBuffer.getReadPointer (0);
-        int n = juce::jmin (numSamples, kScopeSize);
-        for (int i = 0; i < n; ++i) scopeData[i] = src[i];
+        const int toWrite = juce::jmin (numSamples, scopeFifo.getFreeSpace());
+        if (toWrite > 0)
+        {
+            int start1, size1, start2, size2;
+            scopeFifo.prepareToWrite (toWrite, start1, size1, start2, size2);
+            for (int i = 0; i < size1; ++i) scopeRing[start1 + i] = src[i];
+            for (int i = 0; i < size2; ++i) scopeRing[start2 + i] = src[size1 + i];
+            scopeFifo.finishedWrite (size1 + size2);
+        }
     }
 
     const float currentMix = mixParam->load();
@@ -84,6 +94,20 @@ void RingModAudioProcessor::setStateInformation (const void* data, int sizeInByt
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
     if (xmlState != nullptr && xmlState->hasTagName (parameters.state.getType()))
         parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+}
+
+int RingModAudioProcessor::drainScopeData (float* dest, int maxSamples) noexcept
+{
+    const int toRead = juce::jmin (scopeFifo.getNumReady(), maxSamples);
+    if (toRead == 0) return 0;
+
+    int start1, size1, start2, size2;
+    scopeFifo.prepareToRead (toRead, start1, size1, start2, size2);
+    for (int i = 0; i < size1; ++i) dest[i]         = scopeRing[start1 + i];
+    for (int i = 0; i < size2; ++i) dest[size1 + i] = scopeRing[start2 + i];
+    scopeFifo.finishedRead (size1 + size2);
+
+    return size1 + size2;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
