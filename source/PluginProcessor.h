@@ -49,8 +49,9 @@ private:
     std::atomic<float>* freqParam = nullptr;
     std::atomic<float>* mixParam  = nullptr;
 
-    juce::dsp::Oscillator<float> carrierOsc;
-    juce::AudioBuffer<float> carrierBuffer;
+    juce::dsp::Oscillator<float>  carrierOsc;
+    juce::AudioBuffer<float>      carrierBuffer;
+    juce::dsp::DryWetMixer<float> dryWetMixer;
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

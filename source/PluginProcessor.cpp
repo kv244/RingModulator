@@ -24,14 +24,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::creat
 
 void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Carrier is mono — one sine wave applied identically to all channels
-    juce::dsp::ProcessSpec spec { sampleRate, (uint32) samplesPerBlock, 1u };
+    // Carrier oscillator is mono; one sine wave applied to all output channels
+    juce::dsp::ProcessSpec carrierSpec { sampleRate, (uint32) samplesPerBlock, 1u };
     carrierOsc.initialise ([](float x) { return std::sin (x); });
-    carrierOsc.prepare (spec);
+    carrierOsc.prepare (carrierSpec);
     carrierBuffer.setSize (1, samplesPerBlock);
+
+    // DryWetMixer operates on the full stereo main bus
+    juce::dsp::ProcessSpec mainSpec { sampleRate, (uint32) samplesPerBlock,
+                                      (uint32) juce::jmax (1, getTotalNumOutputChannels()) };
+    dryWetMixer.prepare (mainSpec);
 }
 
-void RingModAudioProcessor::releaseResources() {}
+void RingModAudioProcessor::releaseResources()
+{
+    dryWetMixer.reset();
+}
 
 void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
@@ -64,20 +72,23 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         }
     }
 
-    const float currentMix = mixParam->load();
+    // Latch the mix value and hand the dry signal to the mixer before we
+    // overwrite the buffer with the ring-modulated (wet) signal.
+    juce::dsp::AudioBlock<float> mainBlock (buffer);
+    dryWetMixer.setWetMixProportion (mixParam->load());
+    dryWetMixer.pushDrySamples (mainBlock);
 
+    // Ring modulation: multiply every channel by the mono carrier in-place.
+    // DryWetMixer::mixWetSamples will apply the SIMD-optimised crossfade.
+    auto* carrier = carrierBuffer.getReadPointer (0);
     for (int ch = 0; ch < numChannels; ++ch)
     {
-        auto* mainSignal = buffer.getWritePointer (ch);
-        auto* carrierSignal = carrierBuffer.getReadPointer (0); // mono carrier shared across all channels
-
+        auto* signal = buffer.getWritePointer (ch);
         for (int n = 0; n < numSamples; ++n)
-        {
-            float drySample = mainSignal[n];
-            float wetSample = drySample * carrierSignal[n];
-            mainSignal[n] = drySample + currentMix * (wetSample - drySample);
-        }
+            signal[n] *= carrier[n];
     }
+
+    dryWetMixer.mixWetSamples (mainBlock);
 }
 
 juce::AudioProcessorEditor* RingModAudioProcessor::createEditor() { return new RingModAudioProcessorEditor (*this); }
