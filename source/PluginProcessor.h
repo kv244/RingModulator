@@ -9,7 +9,8 @@ public:
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
-    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock         (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -49,6 +50,7 @@ private:
     std::atomic<float>* freqParam = nullptr;
     std::atomic<float>* mixParam  = nullptr;
 
+    juce::SmoothedValue<float>    freqSmoothed;
     juce::dsp::Oscillator<float>  carrierOsc;
     juce::AudioBuffer<float>      carrierBuffer;
     juce::dsp::DryWetMixer<float> dryWetMixer;

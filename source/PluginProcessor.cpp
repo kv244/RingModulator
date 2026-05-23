@@ -24,15 +24,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::creat
 
 void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    freqSmoothed.reset (sampleRate, 0.02);
+    freqSmoothed.setCurrentAndTargetValue (freqParam->load());
+
     // Carrier oscillator is mono; one sine wave applied to all output channels
     juce::dsp::ProcessSpec carrierSpec { sampleRate, (uint32) samplesPerBlock, 1u };
     carrierOsc.initialise ([](float x) { return std::sin (x); });
     carrierOsc.prepare (carrierSpec);
     carrierBuffer.setSize (1, samplesPerBlock);
 
-    // DryWetMixer operates on the full stereo main bus
-    juce::dsp::ProcessSpec mainSpec { sampleRate, (uint32) samplesPerBlock,
-                                      (uint32) juce::jmax (1, getTotalNumOutputChannels()) };
+    // DryWetMixer channel count covers both bus directions to handle asymmetric configs
+    const uint32 numChannels = (uint32) juce::jmax (1,
+        juce::jmax (getTotalNumInputChannels(), getTotalNumOutputChannels()));
+    juce::dsp::ProcessSpec mainSpec { sampleRate, (uint32) samplesPerBlock, numChannels };
     dryWetMixer.prepare (mainSpec);
 }
 
@@ -49,12 +53,13 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     if (numChannels == 0 || numSamples == 0) return;
 
-    carrierOsc.setFrequency (freqParam->load());
-
-    juce::dsp::AudioBlock<float> carrierBlock (carrierBuffer);
-    juce::dsp::AudioBlock<float> clippedCarrierBlock = carrierBlock.getSubBlock (0, (size_t) numSamples);
-    juce::dsp::ProcessContextReplacing<float> carrierContext (clippedCarrierBlock);
-    carrierOsc.process (carrierContext);
+    freqSmoothed.setTargetValue (freqParam->load());
+    auto* carrierOut = carrierBuffer.getWritePointer (0);
+    for (int n = 0; n < numSamples; ++n)
+    {
+        carrierOsc.setFrequency (freqSmoothed.getNextValue());
+        carrierOut[n] = carrierOsc.processSample (0.0f);
+    }
 
     // Push carrier samples into the lock-free scope FIFO.
     // Only write as many samples as the FIFO currently has room for;
@@ -78,16 +83,21 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     dryWetMixer.setWetMixProportion (mixParam->load());
     dryWetMixer.pushDrySamples (mainBlock);
 
-    // Ring modulation: multiply every channel by the mono carrier in-place.
-    // DryWetMixer::mixWetSamples will apply the SIMD-optimised crossfade.
+    // Ring modulation: SIMD-multiply every channel by the mono carrier in-place.
     auto* carrier = carrierBuffer.getReadPointer (0);
     for (int ch = 0; ch < numChannels; ++ch)
-    {
-        auto* signal = buffer.getWritePointer (ch);
-        for (int n = 0; n < numSamples; ++n)
-            signal[n] *= carrier[n];
-    }
+        juce::FloatVectorOperations::multiply (buffer.getWritePointer (ch), carrier, numSamples);
 
+    dryWetMixer.mixWetSamples (mainBlock);
+}
+
+void RingModAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
+                                                   juce::MidiBuffer&)
+{
+    // Keep the DryWetMixer delay buffer in sync so bypass toggling is click-free.
+    juce::dsp::AudioBlock<float> mainBlock (buffer);
+    dryWetMixer.setWetMixProportion (0.0f);
+    dryWetMixer.pushDrySamples (mainBlock);
     dryWetMixer.mixWetSamples (mainBlock);
 }
 
