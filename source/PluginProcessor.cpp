@@ -44,6 +44,7 @@ bool RingModAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
 void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
+    twoPiOverSR       = juce::MathConstants<double>::twoPi / sampleRate;
     oscillatorPhase   = 0.0;
     currentWaveform   = (int) std::round (waveformParam->load());
 
@@ -75,8 +76,7 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     if (numChannels == 0 || numSamples == 0) return;
 
-    const int    targetWaveform = (int) std::round (waveformParam->load());
-    const double twoPiOverSR   = juce::MathConstants<double>::twoPi / currentSampleRate;
+    const int targetWaveform = (int) std::round (waveformParam->load());
     freqSmoothed.setTargetValue (freqParam->load());
     auto* carrierOut = carrierBuffer.getWritePointer (0);
     for (int n = 0; n < numSamples; ++n)
