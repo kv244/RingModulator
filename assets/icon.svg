@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="32%" r="72%">
+      <stop offset="0%" stop-color="#1E2A36"/>
+      <stop offset="100%" stop-color="#0C1016"/>
+    </radialGradient>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softglow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="88" fill="url(#bg)"/>
+
+  <!-- The "ring" — outer glow -->
+  <circle cx="256" cy="228" r="152" fill="none"
+          stroke="#00C0D8" stroke-width="12" opacity="0.12" filter="url(#softglow)"/>
+  <!-- The "ring" — crisp stroke -->
+  <circle cx="256" cy="228" r="152" fill="none"
+          stroke="#00C8E0" stroke-width="2.5" opacity="0.55"/>
+  <!-- Inner subtle fill -->
+  <circle cx="256" cy="228" r="152" fill="#081418" opacity="0.45"/>
+
+  <!-- Carrier sine wave — 2 cycles, cyan, passes through the ring -->
+  <!-- x: 56→456 (400px = 2 periods of 200px), center y=228, amp=56 -->
+  <!-- half-period=100, CP offset=36 -->
+  <!-- glow layer -->
+  <path d="M 56,228 C 92,172 120,172 156,228
+           C 192,284 220,284 256,228
+           C 292,172 320,172 356,228
+           C 392,284 420,284 456,228"
+        fill="none" stroke="#00D8F0" stroke-width="11"
+        stroke-linecap="round" opacity="0.18" filter="url(#softglow)"/>
+  <!-- main line -->
+  <path d="M 56,228 C 92,172 120,172 156,228
+           C 192,284 220,284 256,228
+           C 292,172 320,172 356,228
+           C 392,284 420,284 456,228"
+        fill="none" stroke="#00ECFF" stroke-width="5.5"
+        stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Horizontal axis line through center -->
+  <line x1="56" y1="228" x2="456" y2="228"
+        stroke="#1C3040" stroke-width="1.2"/>
+
+  <!-- Center glow dot -->
+  <circle cx="256" cy="228" r="14" fill="#00C8E0" opacity="0.15" filter="url(#softglow)"/>
+  <circle cx="256" cy="228" r="5"  fill="#00ECFF" opacity="0.9"/>
+
+  <!-- "×" symbol — ring modulation operator -->
+  <text x="256" y="360"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="52" font-weight="200"
+        fill="#00B0C8" text-anchor="middle"
+        opacity="0.70" filter="url(#glow)">×</text>
+
+  <!-- RING MOD logotype -->
+  <text x="256" y="440"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="40" font-weight="700" letter-spacing="7"
+        fill="#00A0B8" text-anchor="middle" opacity="0.82">RING</text>
+  <text x="256" y="482"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="26" font-weight="300" letter-spacing="16"
+        fill="#005870" text-anchor="middle" opacity="0.60">MOD</text>
+</svg>
