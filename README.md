@@ -1,5 +1,8 @@
 # RingMod
 
+[![Compile](https://github.com/kv244/RingModulator/actions/workflows/compile.yml/badge.svg)](https://github.com/kv244/RingModulator/actions/workflows/compile.yml)
+[![Lint](https://github.com/kv244/RingModulator/actions/workflows/lint.yml/badge.svg)](https://github.com/kv244/RingModulator/actions/workflows/lint.yml)
+
 A ring modulator audio plugin built with [JUCE](https://juce.com/). Multiplies the input signal by a sine-wave carrier to produce classic ring modulation sidebands, with a dry/wet mix control.
 
 ![GUI](source/GUI.png)
@@ -26,28 +29,27 @@ This creates sum and difference sidebands around the carrier frequency, producin
 ### Requirements
 
 - CMake 3.22+
-- JUCE 8 (source tree)
 - A C++17 compiler (MSVC 2022, Clang, or GCC)
+- Git (JUCE 8.0.13 is fetched automatically if no local copy is provided)
 
 ### Configure and Build
 
 ```bash
-cmake -B build -DJUCE_PATH="C:/path/to/JUCE"
+# JUCE is downloaded automatically via FetchContent
+cmake -B build
 cmake --build build --config Release
 ```
 
-The built plugin will be placed in `build/RingMod_artefacts/Release/`.
-
-Supported formats: **VST3**, **AU** (macOS), **Standalone**.
-
-### macOS / Linux
-
-Replace the JUCE path as appropriate. AU is only built on macOS.
+To use a local JUCE tree instead (faster, avoids the download):
 
 ```bash
 cmake -B build -DJUCE_PATH="/path/to/JUCE"
 cmake --build build --config Release
 ```
+
+The built plugin will be placed in `build/RingMod_artefacts/Release/`.
+
+Supported formats: **VST3**, **Standalone**.
 
 ## Project Structure
 

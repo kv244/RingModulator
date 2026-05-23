@@ -1,0 +1,59 @@
+name: Compile
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-windows:
+    name: Build (Windows / VST3 + Standalone)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cache the JUCE FetchContent download and its build artefacts so
+      # subsequent runs don't re-download or re-compile the entire framework.
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: juce-8.0.13-windows-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: juce-8.0.13-windows-
+
+      - name: Configure
+        run: >
+          cmake -B build
+          -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Verify artefacts
+        run: |
+          if (!(Test-Path "build/RingMod_artefacts/Release/VST3/RingMod.vst3")) {
+            Write-Error "VST3 artefact missing"
+            exit 1
+          }
+          if (!(Test-Path "build/RingMod_artefacts/Release/Standalone/RingMod.exe")) {
+            Write-Error "Standalone artefact missing"
+            exit 1
+          }
+          Write-Host "All artefacts present."
+        shell: pwsh
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: RingMod-VST3-windows
+          path: build/RingMod_artefacts/Release/VST3/RingMod.vst3
+          if-no-files-found: error
+
+      - name: Upload Standalone
+        uses: actions/upload-artifact@v4
+        with:
+          name: RingMod-Standalone-windows
+          path: build/RingMod_artefacts/Release/Standalone/RingMod.exe
+          if-no-files-found: error

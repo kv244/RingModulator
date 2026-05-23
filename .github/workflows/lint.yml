@@ -1,0 +1,34 @@
+name: Lint
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  cppcheck:
+    name: cppcheck static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        # Suppress missing-include noise from JUCE headers (not present on this runner).
+        # Enable only error-level checks so real bugs (null deref, out-of-bounds,
+        # use-after-free, etc.) cause a non-zero exit while JUCE-specific patterns
+        # that look like style violations are not flagged.
+        run: |
+          cppcheck \
+            --enable=error \
+            --std=c++17 \
+            --error-exitcode=1 \
+            --suppress=missingInclude \
+            --suppress=missingIncludeSystem \
+            --suppress=unknownMacro \
+            source/PluginProcessor.cpp \
+            source/PluginEditor.cpp

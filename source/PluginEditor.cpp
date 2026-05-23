@@ -157,7 +157,7 @@ void RingModAudioProcessorEditor::drawDigitalDisplay (juce::Graphics& g)
 void RingModAudioProcessorEditor::drawFreqTickMarks (juce::Graphics& g)
 {
     const float cx      = 190.0f;
-    const float cy      = 215.0f;
+    const float cy      = 200.0f;
     const float outerR  = 120.0f;
     const float innerR  = 111.0f;
     const float labelR  = 135.0f;
@@ -193,7 +193,7 @@ void RingModAudioProcessorEditor::drawFreqTickMarks (juce::Graphics& g)
     // "Carrier Frequency" label — Feature 3 companion
     g.setColour (juce::Colour::fromRGB (138, 154, 172));
     g.setFont (juce::FontOptions (13.0f));
-    g.drawText ("Carrier Frequency", 88, 340, 204, 18, juce::Justification::centred);
+    g.drawText ("Carrier Frequency", 88, 324, 204, 18, juce::Justification::centred);
 }
 
 // ---- Feature 4: carrier buffer oscilloscope ----
@@ -372,8 +372,8 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
 void RingModAudioProcessorEditor::resized()
 {
-    // Freq knob: centre at (190, 215), radius ~108
-    freqSlider.setBounds (78, 100, 224, 230);
+    // Freq knob: centre at (190, 200), radius ~106
+    freqSlider.setBounds (78, 85, 224, 230);
 
     // Mix knob: centre at (516, 218), radius ~68
     mixSlider.setBounds (448, 130, 136, 170);

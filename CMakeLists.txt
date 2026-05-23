@@ -2,11 +2,21 @@ cmake_minimum_required(VERSION 3.22)
 
 project(RingMod VERSION 1.0.0)
 
-# Allow overriding JUCE location via -DJUCE_PATH=...
-if(NOT DEFINED JUCE_PATH)
-    set(JUCE_PATH "C:/Users/julia/Downloads/juce-8.0.13-windows/JUCE")
+# Use a local JUCE tree if -DJUCE_PATH=... is provided and the path exists.
+# Otherwise fall back to FetchContent (used by CI and first-time cloners).
+if(DEFINED JUCE_PATH AND EXISTS "${JUCE_PATH}")
+    message(STATUS "RingMod: using local JUCE at ${JUCE_PATH}")
+    add_subdirectory("${JUCE_PATH}" JUCE EXCLUDE_FROM_ALL)
+else()
+    message(STATUS "RingMod: fetching JUCE 8.0.13 via FetchContent")
+    include(FetchContent)
+    FetchContent_Declare(JUCE
+        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+        GIT_TAG        8.0.13
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(JUCE)
 endif()
-add_subdirectory(${JUCE_PATH} JUCE EXCLUDE_FROM_ALL)
 
 juce_add_plugin(RingMod
     COMPANY_NAME "AudioDSP"
