@@ -18,12 +18,17 @@ else()
     FetchContent_MakeAvailable(JUCE)
 endif()
 
+# Set -DCOPY_PLUGIN=ON to auto-install VST3 to the system folder after each build.
+# Requires write access to C:/Program Files/Common Files/VST3 (run cmake --build as admin).
+option(COPY_PLUGIN "Copy VST3 to system VST3 folder after each build" OFF)
+
 juce_add_plugin(RingMod
     COMPANY_NAME "AudioDSP"
     PLUGIN_MANUFACTURER_CODE AudD
     PLUGIN_CODE RngM
     FORMATS VST3 Standalone
     PRODUCT_NAME "RingMod"
+    COPY_PLUGIN_AFTER_BUILD ${COPY_PLUGIN}
     ICON_BIG   "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.svg"
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.svg"
 )

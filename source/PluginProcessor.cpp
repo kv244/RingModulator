@@ -22,6 +22,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::creat
     return layout;
 }
 
+bool RingModAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+{
+    const auto& out = layouts.getMainOutputChannelSet();
+    if (out == juce::AudioChannelSet::disabled())
+        return false;
+    // Accept mono or stereo only; input and output must match.
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
+        return false;
+    return layouts.getMainInputChannelSet() == out;
+}
+
 void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     freqSmoothed.reset (sampleRate, 0.02);

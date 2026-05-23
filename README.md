@@ -51,6 +51,28 @@ The built plugin will be placed in `build/RingMod_artefacts/Release/`.
 
 Supported formats: **VST3**, **Standalone**.
 
+### Installing into a DAW
+
+Copy `build/RingMod_artefacts/Release/VST3/RingMod.vst3` to:
+
+| OS | Default VST3 folder |
+|---|---|
+| Windows | `C:\Program Files\Common Files\VST3\` |
+| macOS | `/Library/Audio/Plug-Ins/VST3/` |
+
+**Auto-install after build** (Windows, requires admin shell):
+
+```bash
+cmake -B build -DJUCE_PATH="..." -DCOPY_PLUGIN=ON
+cmake --build build --config Release
+```
+
+#### Ableton Live
+Preferences → Plug-Ins → enable "Use VST3 Plug-In Custom Folder" or point it at the Common Files path above. Re-scan plug-ins after copying.
+
+#### Renoise
+Preferences → Plug-Ins/Devices → add the VST3 folder and click Re-scan. The plugin supports both mono and stereo FX tracks.
+
 ## Project Structure
 
 ```
