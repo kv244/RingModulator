@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+// Registers stereo buses and binds raw parameter pointers for lock-free audio-thread access.
 RingModAudioProcessor::RingModAudioProcessor()
     : AudioProcessor (BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
                                        .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
@@ -13,6 +14,7 @@ RingModAudioProcessor::RingModAudioProcessor()
 
 RingModAudioProcessor::~RingModAudioProcessor() {}
 
+// Skew factor 0.3 on freq gives a log-like curve so the knob feels linear across decades.
 juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -26,6 +28,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::creat
     return layout;
 }
 
+// Accepts mono or stereo only; input and output must match (required by Ableton Live and Renoise FX chains).
 bool RingModAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     const auto& out = layouts.getMainOutputChannelSet();
@@ -37,6 +40,7 @@ bool RingModAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
     return layouts.getMainInputChannelSet() == out;
 }
 
+// Resets phase and smoothers; DryWetMixer channel count covers asymmetric bus configs.
 void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
@@ -55,11 +59,14 @@ void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     dryWetMixer.prepare (mainSpec);
 }
 
+// Flushes the DryWetMixer delay buffer so stale samples don't bleed into the next stream.
 void RingModAudioProcessor::releaseResources()
 {
     dryWetMixer.reset();
 }
 
+// Generates the carrier, writes it to the scope FIFO, then SIMD-multiplies every channel in-place.
+// Waveform switches only at phase zero-crossing to avoid mid-cycle discontinuities.
 void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -113,6 +120,8 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     dryWetMixer.mixWetSamples (mainBlock);
 }
 
+// Pumps the DryWetMixer at mix=0 while bypassed so its internal delay buffer stays in sync,
+// preventing a click when bypass is toggled back off.
 void RingModAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
                                                    juce::MidiBuffer&)
 {
@@ -125,6 +134,7 @@ void RingModAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
 
 juce::AudioProcessorEditor* RingModAudioProcessor::createEditor() { return new RingModAudioProcessorEditor (*this); }
 
+// Serialises the APVTS state to XML binary for DAW preset save.
 void RingModAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
@@ -132,6 +142,7 @@ void RingModAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     copyXmlToBinary (*xml, destData);
 }
 
+// Restores APVTS state from DAW preset; guards against malformed or mismatched XML.
 void RingModAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
@@ -139,6 +150,8 @@ void RingModAudioProcessor::setStateInformation (const void* data, int sizeInByt
         parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
 }
 
+// Pure function: maps phase ∈ [0, 2π) to a normalised sample for the chosen waveform.
+// Called once per sample on the audio thread — must stay allocation-free and branch-predictable.
 float RingModAudioProcessor::generateSample (double phase, int waveform) noexcept
 {
     // phase is in [0, 2π)
@@ -160,6 +173,8 @@ float RingModAudioProcessor::generateSample (double phase, int waveform) noexcep
     }
 }
 
+// Drains up to maxSamples from the lock-free FIFO into dest; returns the count actually read.
+// Safe to call on the message thread while the audio thread writes concurrently.
 int RingModAudioProcessor::drainScopeData (float* dest, int maxSamples) noexcept
 {
     const int toRead = juce::jmin (scopeFifo.getNumReady(), maxSamples);
