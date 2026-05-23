@@ -97,6 +97,20 @@ RingModAudioProcessorEditor::RingModAudioProcessorEditor (RingModAudioProcessor&
     mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.getAPVTS(), "mix", mixSlider);
 
+    // Waveform selector — items must match AudioParameterChoice order exactly
+    waveformBox.addItem ("Sine",     1);
+    waveformBox.addItem ("Saw",      2);
+    waveformBox.addItem ("Square",   3);
+    waveformBox.addItem ("Triangle", 4);
+    waveformBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (14, 18, 24));
+    waveformBox.setColour (juce::ComboBox::textColourId,       juce::Colour::fromRGB (0, 220, 255));
+    waveformBox.setColour (juce::ComboBox::outlineColourId,    juce::Colour::fromRGB (36, 56, 72));
+    waveformBox.setColour (juce::ComboBox::arrowColourId,      juce::Colour::fromRGB (0, 160, 200));
+    waveformBox.setJustificationType (juce::Justification::centred);
+    addAndMakeVisible (waveformBox);
+    waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        audioProcessor.getAPVTS(), "waveform", waveformBox);
+
     setSize (640, 400);
     startTimerHz (30);
 }
@@ -340,11 +354,11 @@ void RingModAudioProcessorEditor::drawParamsPanel (juce::Graphics& g)
     g.setColour (juce::Colour::fromRGB (195, 210, 228));
     g.drawText (juce::String (mix, 1), 66, 379, 55, 15, juce::Justification::left);
 
-    // Status text (right side)
+    // Status text (right side) — show active waveform
     g.setColour (juce::Colour::fromRGB (58, 76, 94));
     g.setFont (juce::FontOptions (9.5f));
-    g.drawText ("System: juce::dsp::Oscillator (Ready)", 200, 365, 260, 14, juce::Justification::left);
-    g.drawText ("carrierBuffer (Ready)",                 200, 379, 200, 14, juce::Justification::left);
+    g.drawText ("Waveform: " + waveformBox.getText() + "  |  Phase Accumulator", 200, 365, 310, 14, juce::Justification::left);
+    g.drawText ("carrierBuffer (Ready)",                                          200, 379, 200, 14, juce::Justification::left);
 }
 
 // ========================= paint / resized =========================
@@ -389,6 +403,11 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     drawMixSection    (g);   // 5 + 6
     drawParamsPanel   (g);   // 7
     // Feature 9 (custom knob style) is handled by GlowKnobLookAndFeel
+
+    // Waveform selector label (above the ComboBox at y=280)
+    g.setColour (juce::Colour::fromRGB (110, 132, 152));
+    g.setFont (juce::FontOptions (10.0f));
+    g.drawText ("Waveform", 302, 264, 128, 14, juce::Justification::centred);
 }
 
 void RingModAudioProcessorEditor::resized()
@@ -398,4 +417,7 @@ void RingModAudioProcessorEditor::resized()
 
     // Mix knob: centre at (516, 218), radius ~68
     mixSlider.setBounds (448, 130, 136, 170);
+
+    // Waveform selector: below the oscilloscope box (which ends at y=256)
+    waveformBox.setBounds (302, 280, 128, 26);
 }

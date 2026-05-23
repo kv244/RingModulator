@@ -46,11 +46,13 @@ private:
     GlowKnobLookAndFeel freqLAF { juce::Colour::fromRGB (0, 170, 200), juce::Colour::fromRGB (0, 240, 255) };
     GlowKnobLookAndFeel mixLAF  { juce::Colour::fromRGB (0, 155, 75),  juce::Colour::fromRGB (0, 255, 120) };
 
-    juce::Slider freqSlider;
-    juce::Slider mixSlider;
+    juce::Slider   freqSlider;
+    juce::Slider   mixSlider;
+    juce::ComboBox waveformBox;
 
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> freqAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   freqAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   mixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RingModAudioProcessorEditor)
 };

@@ -49,13 +49,17 @@ private:
     std::array<float, kScopeFifoSize>     scopeRing {};
 
     juce::AudioProcessorValueTreeState parameters;
-    std::atomic<float>* freqParam = nullptr;
-    std::atomic<float>* mixParam  = nullptr;
+    std::atomic<float>* freqParam     = nullptr;
+    std::atomic<float>* mixParam      = nullptr;
+    std::atomic<float>* waveformParam = nullptr;
 
     juce::SmoothedValue<float>    freqSmoothed;
-    juce::dsp::Oscillator<float>  carrierOsc;
+    double                        oscillatorPhase    = 0.0;
+    double                        currentSampleRate  = 44100.0;
     juce::AudioBuffer<float>      carrierBuffer;
     juce::dsp::DryWetMixer<float> dryWetMixer;
+
+    static float generateSample (double phase, int waveform) noexcept;
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

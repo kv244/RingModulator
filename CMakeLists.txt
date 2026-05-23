@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(RingMod VERSION 1.0.0)
+project(RingMod VERSION 1.1.0)
 
 # Use a local JUCE tree if -DJUCE_PATH=... is provided and the path exists.
 # Otherwise fall back to FetchContent (used by CI and first-time cloners).

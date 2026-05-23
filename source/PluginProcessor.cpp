@@ -6,8 +6,9 @@ RingModAudioProcessor::RingModAudioProcessor()
                                        .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "PARAMS", createParameterLayout())
 {
-    freqParam = parameters.getRawParameterValue ("freq");
-    mixParam  = parameters.getRawParameterValue ("mix");
+    freqParam     = parameters.getRawParameterValue ("freq");
+    mixParam      = parameters.getRawParameterValue ("mix");
+    waveformParam = parameters.getRawParameterValue ("waveform");
 }
 
 RingModAudioProcessor::~RingModAudioProcessor() {}
@@ -19,6 +20,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::creat
         "freq", "Carrier Frequency", juce::NormalisableRange<float> (20.0f, 2000.0f, 0.01f, 0.3f), 440.0f));
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         "mix", "Dry/Wet Mix", 0.0f, 1.0f, 1.0f));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        "waveform", "Waveform",
+        juce::StringArray { "Sine", "Saw", "Square", "Triangle" }, 0));
     return layout;
 }
 
@@ -35,13 +39,12 @@ bool RingModAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
 
 void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    currentSampleRate = sampleRate;
+    oscillatorPhase   = 0.0;
+
     freqSmoothed.reset (sampleRate, 0.02);
     freqSmoothed.setCurrentAndTargetValue (freqParam->load());
 
-    // Carrier oscillator is mono; one sine wave applied to all output channels
-    juce::dsp::ProcessSpec carrierSpec { sampleRate, (uint32) samplesPerBlock, 1u };
-    carrierOsc.initialise ([](float x) { return std::sin (x); });
-    carrierOsc.prepare (carrierSpec);
     carrierBuffer.setSize (1, samplesPerBlock);
 
     // DryWetMixer channel count covers both bus directions to handle asymmetric configs
@@ -64,12 +67,16 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     if (numChannels == 0 || numSamples == 0) return;
 
+    const int    waveform      = (int) std::round (waveformParam->load());
+    const double twoPiOverSR   = juce::MathConstants<double>::twoPi / currentSampleRate;
     freqSmoothed.setTargetValue (freqParam->load());
     auto* carrierOut = carrierBuffer.getWritePointer (0);
     for (int n = 0; n < numSamples; ++n)
     {
-        carrierOsc.setFrequency (freqSmoothed.getNextValue());
-        carrierOut[n] = carrierOsc.processSample (0.0f);
+        carrierOut[n]    = generateSample (oscillatorPhase, waveform);
+        oscillatorPhase += twoPiOverSR * (double) freqSmoothed.getNextValue();
+        if (oscillatorPhase >= juce::MathConstants<double>::twoPi)
+            oscillatorPhase -= juce::MathConstants<double>::twoPi;
     }
 
     // Push carrier samples into the lock-free scope FIFO.
@@ -126,6 +133,27 @@ void RingModAudioProcessor::setStateInformation (const void* data, int sizeInByt
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
     if (xmlState != nullptr && xmlState->hasTagName (parameters.state.getType()))
         parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+}
+
+float RingModAudioProcessor::generateSample (double phase, int waveform) noexcept
+{
+    // phase is in [0, 2π)
+    using M = juce::MathConstants<double>;
+    switch (waveform)
+    {
+        case 1:  // Saw: ramps linearly from -1 to +1
+            return (float) (phase / M::pi - 1.0);
+
+        case 2:  // Square
+            return phase < M::pi ? 1.0f : -1.0f;
+
+        case 3:  // Triangle: -1 at 0, +1 at π, -1 at 2π
+            return (float) (phase < M::pi ? (2.0 * phase / M::pi - 1.0)
+                                          : (3.0 - 2.0 * phase / M::pi));
+
+        default: // Sine
+            return (float) std::sin (phase);
+    }
 }
 
 int RingModAudioProcessor::drainScopeData (float* dest, int maxSamples) noexcept
