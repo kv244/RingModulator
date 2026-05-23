@@ -18,13 +18,13 @@ jobs:
         run: sudo apt-get install -y cppcheck
 
       - name: Run cppcheck
-        # Suppress missing-include noise from JUCE headers (not present on this runner).
-        # Enable only error-level checks so real bugs (null deref, out-of-bounds,
-        # use-after-free, etc.) cause a non-zero exit while JUCE-specific patterns
-        # that look like style violations are not flagged.
+        # Errors are always reported by default; --enable=warning adds the next
+        # tier (potential null deref, uninitialised values, etc.) without the
+        # false-positive flood from style/performance checks.
+        # JUCE headers are absent on this runner, so suppress the resulting noise.
         run: |
           cppcheck \
-            --enable=error \
+            --enable=warning \
             --std=c++17 \
             --error-exitcode=1 \
             --suppress=missingInclude \
