@@ -18,7 +18,7 @@
 
   <Package Name="RingMod"
            Manufacturer="AudioDSP"
-           Version="1.1.0"
+           Version="$(var.Version)"
            UpgradeCode="6F8B4A3C-E721-4D9E-B847-F2A1D5C83091"
            Scope="perMachine">
 

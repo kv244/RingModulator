@@ -11,11 +11,20 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write   # required to create the GitHub release
+    env:
+      VERSION: ''   # populated by the "Extract version" step below
 
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}" -replace '^v', ''
+          "VERSION=$v" | Out-File -Append $env:GITHUB_ENV -Encoding utf8
+          Write-Host "Version: $v"
 
       - name: Cache JUCE
         uses: actions/cache@v4
@@ -39,6 +48,7 @@ jobs:
         run: >
           wix build installer/RingMod.wxs
           -d BuildArtefacts="${{ github.workspace }}\build\RingMod_artefacts\Release"
+          -d Version=${{ env.VERSION }}
           -arch x64
           -ext WixToolset.UI.wixext/4.0.5
           -o RingMod-${{ github.ref_name }}-win64.msi

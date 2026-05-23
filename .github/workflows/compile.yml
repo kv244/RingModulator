@@ -12,11 +12,25 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
+    env:
+      VERSION: ''   # populated by the "Read version" step below
 
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version from CMakeLists.txt
+        shell: pwsh
+        run: |
+          $content = Get-Content 'CMakeLists.txt' -Raw
+          if ($content -match 'project\(RingMod VERSION ([\d.]+)') {
+            $v = $Matches[1]
+            "VERSION=$v" | Out-File -Append $env:GITHUB_ENV -Encoding utf8
+            Write-Host "Version: $v"
+          } else {
+            Write-Error "Could not parse version from CMakeLists.txt"; exit 1
+          }
 
       # Cache the JUCE FetchContent download and its build artefacts so
       # subsequent runs don't re-download or re-compile the entire framework.
@@ -58,17 +72,19 @@ jobs:
         run: >
           wix build installer/RingMod.wxs
           -d BuildArtefacts="${{ github.workspace }}\build\RingMod_artefacts\Release"
+          -d Version=${{ env.VERSION }}
           -arch x64
           -ext WixToolset.UI.wixext/4.0.5
-          -o RingMod-1.1.0-win64.msi
+          -o RingMod-${{ env.VERSION }}-win64.msi
 
       - name: Verify MSI
         shell: pwsh
         run: |
-          if (!(Test-Path "RingMod-1.1.0-win64.msi")) {
+          $msi = "RingMod-${{ env.VERSION }}-win64.msi"
+          if (!(Test-Path $msi)) {
             Write-Error "MSI not produced"; exit 1
           }
-          $mb = [math]::Round((Get-Item "RingMod-1.1.0-win64.msi").Length / 1MB, 2)
+          $mb = [math]::Round((Get-Item $msi).Length / 1MB, 2)
           Write-Host "MSI size: $mb MB"
 
       # ── Upload artefacts ─────────────────────────────────────────────────────
@@ -90,5 +106,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RingMod-Installer-windows
-          path: RingMod-1.1.0-win64.msi
+          path: RingMod-${{ env.VERSION }}-win64.msi
           if-no-files-found: error
