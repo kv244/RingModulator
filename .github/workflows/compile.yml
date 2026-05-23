@@ -43,12 +43,12 @@ jobs:
           Write-Host "All artefacts present."
 
       # ── MSI packaging ────────────────────────────────────────────────────────
-      # WiX v4 is installed as a .NET global tool. The UI extension provides
-      # the WixUI_Minimal dialog set (Welcome → Install → Finish).
+      # Pin to WiX 4.0.5 — v7+ requires the paid OSMF licence.
+      # The .wxs file targets the v4 schema so 4.0.5 is the correct toolchain.
       - name: Install WiX Toolset v4
         run: |
-          dotnet tool install --global wix
-          wix extension add WixToolset.UI.wixext
+          dotnet tool install --global wix --version 4.0.5
+          wix extension add WixToolset.UI.wixext/4.0.5
 
       - name: Build MSI
         run: >
@@ -64,7 +64,7 @@ jobs:
           if (!(Test-Path "RingMod-1.1.0-win64.msi")) {
             Write-Error "MSI not produced"; exit 1
           }
-          $mb = [math]::Round((Get-Item "RingMod-1.0.0-win64.msi").Length / 1MB, 2)
+          $mb = [math]::Round((Get-Item "RingMod-1.1.0-win64.msi").Length / 1MB, 2)
           Write-Host "MSI size: $mb MB"
 
       # ── Upload artefacts ─────────────────────────────────────────────────────

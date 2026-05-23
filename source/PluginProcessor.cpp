@@ -41,6 +41,7 @@ void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 {
     currentSampleRate = sampleRate;
     oscillatorPhase   = 0.0;
+    currentWaveform   = (int) std::round (waveformParam->load());
 
     freqSmoothed.reset (sampleRate, 0.02);
     freqSmoothed.setCurrentAndTargetValue (freqParam->load());
@@ -67,16 +68,19 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     if (numChannels == 0 || numSamples == 0) return;
 
-    const int    waveform      = (int) std::round (waveformParam->load());
+    const int    targetWaveform = (int) std::round (waveformParam->load());
     const double twoPiOverSR   = juce::MathConstants<double>::twoPi / currentSampleRate;
     freqSmoothed.setTargetValue (freqParam->load());
     auto* carrierOut = carrierBuffer.getWritePointer (0);
     for (int n = 0; n < numSamples; ++n)
     {
-        carrierOut[n]    = generateSample (oscillatorPhase, waveform);
+        carrierOut[n]    = generateSample (oscillatorPhase, currentWaveform);
         oscillatorPhase += twoPiOverSR * (double) freqSmoothed.getNextValue();
         if (oscillatorPhase >= juce::MathConstants<double>::twoPi)
+        {
             oscillatorPhase -= juce::MathConstants<double>::twoPi;
+            currentWaveform  = targetWaveform;  // switch only at cycle boundary
+        }
     }
 
     // Push carrier samples into the lock-free scope FIFO.

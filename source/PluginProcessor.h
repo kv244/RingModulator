@@ -56,6 +56,7 @@ private:
     juce::SmoothedValue<float>    freqSmoothed;
     double                        oscillatorPhase    = 0.0;
     double                        currentSampleRate  = 44100.0;
+    int                           currentWaveform    = 0;
     juce::AudioBuffer<float>      carrierBuffer;
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
