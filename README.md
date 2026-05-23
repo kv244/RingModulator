@@ -81,7 +81,7 @@ cmake -B build -DJUCE_PATH="..." -DCOPY_PLUGIN=ON
 cmake --build build --config Release
 ```
 
-**MSI installer** — download `RingMod-1.1.0-win64.msi` from the [GitHub Actions artifacts](https://github.com/kv244/RingModulator/actions) for a one-click install to the system VST3 folder.
+**MSI installer** — download `RingMod-v1.1.0-win64.msi` from [GitHub Releases](https://github.com/kv244/RingModulator/releases) for a one-click install to the system VST3 folder.
 
 #### Ableton Live
 Preferences → Plug-Ins → enable "Use VST3 Plug-In Custom Folder" or point it at the Common Files path above. Re-scan plug-ins after copying.
@@ -100,10 +100,14 @@ ringmod/
 │   └── icon.svg
 ├── installer/
 │   └── RingMod.wxs        # WiX v4 MSI installer definition
+├── .github/workflows/
+│   ├── compile.yml        # Build + MSI check on every push to master
+│   ├── lint.yml           # cppcheck static analysis
+│   └── release.yml        # Build + publish GitHub Release on v* tags
 └── source/
     ├── PluginProcessor.h / .cpp   # DSP: phase accumulator, ring mod, state save/load
     ├── PluginEditor.h / .cpp      # GUI: custom knobs, oscilloscope, waveform selector
-    └── GUI.png                    # Reference design
+    └── GUI.png                    # Reference screenshot
 ```
 
 ## Changelog
@@ -111,8 +115,10 @@ ringmod/
 ### 1.1.0
 - Added **Waveform** parameter: Sine, Saw, Square, Triangle carrier shapes
 - Replaced `juce::dsp::Oscillator` with a direct phase accumulator for allocation-free waveform switching on the audio thread
+- Waveform switches only at phase zero-crossing to avoid mid-cycle discontinuities
 - Added `isBusesLayoutSupported` — plugin now accepts mono and stereo FX tracks (Ableton Live, Renoise)
-- Added WiX v4 MSI installer built in GitHub Actions
+- Added `processBlockBypassed` for click-free DAW bypass
+- Added WiX v4 MSI installer; releases published automatically to GitHub Releases on version tags
 
 ### 1.0.0
 - Initial release: sine carrier ring modulator, dry/wet mix, oscilloscope, custom knob UI
