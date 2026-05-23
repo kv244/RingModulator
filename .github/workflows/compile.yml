@@ -55,7 +55,7 @@ jobs:
           wix build installer/RingMod.wxs
           -d BuildArtefacts="${{ github.workspace }}\build\RingMod_artefacts\Release"
           -arch x64
-          -ext WixToolset.UI.wixext
+          -ext WixToolset.UI.wixext/4.0.5
           -o RingMod-1.1.0-win64.msi
 
       - name: Verify MSI

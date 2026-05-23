@@ -276,6 +276,14 @@ void RingModAudioProcessorEditor::drawOscilloscope (juce::Graphics& g)
     }
 }
 
+// ---- Waveform selector label (ComboBox component sits at y=280 in resized()) ----
+void RingModAudioProcessorEditor::drawWaveformSelector (juce::Graphics& g)
+{
+    g.setColour (juce::Colour::fromRGB (110, 132, 152));
+    g.setFont (juce::FontOptions (10.0f));
+    g.drawText ("Waveform", 302, 264, 128, 14, juce::Justification::centred);
+}
+
 // ---- Feature 5 + 6: mix LED bar + value readout ----
 void RingModAudioProcessorEditor::drawMixSection (juce::Graphics& g)
 {
@@ -393,21 +401,16 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (75, 95, 115));
     g.setFont (juce::FontOptions (10.5f));
-    g.drawText ("JUCE DSP CORE", 35, 46, 160, 15, juce::Justification::left);
+    g.drawText ("JUCE DSP  |  Phase Accumulator", 35, 46, 220, 15, juce::Justification::left);
 
-    // All 9 features
-    drawJuceLogo      (g);   // 8
-    drawDigitalDisplay(g);   // 1 + 2
-    drawFreqTickMarks (g);   // 3
-    drawOscilloscope  (g);   // 4
-    drawMixSection    (g);   // 5 + 6
-    drawParamsPanel   (g);   // 7
-    // Feature 9 (custom knob style) is handled by GlowKnobLookAndFeel
-
-    // Waveform selector label (above the ComboBox at y=280)
-    g.setColour (juce::Colour::fromRGB (110, 132, 152));
-    g.setFont (juce::FontOptions (10.0f));
-    g.drawText ("Waveform", 302, 264, 128, 14, juce::Justification::centred);
+    drawJuceLogo        (g);
+    drawDigitalDisplay  (g);
+    drawFreqTickMarks   (g);
+    drawOscilloscope    (g);
+    drawWaveformSelector(g);
+    drawMixSection      (g);
+    drawParamsPanel     (g);
+    // Knob style (GlowKnobLookAndFeel) renders via the Slider components directly.
 }
 
 void RingModAudioProcessorEditor::resized()

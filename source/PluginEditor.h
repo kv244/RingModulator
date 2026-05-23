@@ -28,12 +28,13 @@ public:
 private:
     void timerCallback() override;
 
-    void drawJuceLogo      (juce::Graphics&);
-    void drawDigitalDisplay(juce::Graphics&);
-    void drawFreqTickMarks (juce::Graphics&);
-    void drawOscilloscope  (juce::Graphics&);
-    void drawMixSection    (juce::Graphics&);
-    void drawParamsPanel   (juce::Graphics&);
+    void drawJuceLogo        (juce::Graphics&);
+    void drawDigitalDisplay  (juce::Graphics&);
+    void drawFreqTickMarks   (juce::Graphics&);
+    void drawOscilloscope    (juce::Graphics&);
+    void drawWaveformSelector(juce::Graphics&);
+    void drawMixSection      (juce::Graphics&);
+    void drawParamsPanel     (juce::Graphics&);
 
     static float hzToAngle (float hz, float startAngle, float endAngle) noexcept;
 

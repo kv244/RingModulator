@@ -7,7 +7,7 @@
       -d BuildArtefacts="<path>\build\RingMod_artefacts\Release" ^
       -arch x64 ^
       -ext WixToolset.UI.wixext ^
-      -o RingMod-1.0.0-win64.msi
+      -o RingMod-1.1.0-win64.msi
 
   Installs:
     VST3 Plugin  →  %CommonProgramFiles%\VST3\RingMod.vst3\
