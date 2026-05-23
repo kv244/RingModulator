@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX v4 installer for RingMod VST3 plugin.
+
+  Build with:
+    wix build installer/RingMod.wxs ^
+      -d BuildArtefacts="<path>\build\RingMod_artefacts\Release" ^
+      -arch x64 ^
+      -ext WixToolset.UI.wixext ^
+      -o RingMod-1.0.0-win64.msi
+
+  Installs:
+    VST3 Plugin  →  %CommonProgramFiles%\VST3\RingMod.vst3\
+    Standalone   →  %ProgramFiles%\AudioDSP\RingMod\RingMod.exe
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <Package Name="RingMod"
+           Manufacturer="AudioDSP"
+           Version="1.0.0"
+           UpgradeCode="6F8B4A3C-E721-4D9E-B847-F2A1D5C83091"
+           Scope="perMachine">
+
+    <!-- Silently remove older versions; block downgrade. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of RingMod is already installed." />
+
+    <!-- Embed the cab directly in the MSI for a single-file installer. -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Minimal UI: Welcome → (EULA if present) → Install → Finish. -->
+    <ui:WixUI Id="WixUI_Minimal" />
+
+    <Feature Id="VST3" Title="VST3 Plugin" Level="1">
+      <ComponentRef Id="Comp_VST3DLL" />
+      <ComponentRef Id="Comp_ModuleInfo" />
+    </Feature>
+
+    <Feature Id="Standalone" Title="Standalone Application" Level="1">
+      <ComponentRef Id="Comp_Standalone" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <!--
+      VST3 bundle layout under %CommonProgramFiles%\VST3\:
+        RingMod.vst3\
+          Contents\
+            x86_64-win\RingMod.vst3   (the DLL)
+            Resources\moduleinfo.json
+    -->
+    <StandardDirectory Id="CommonFiles64Folder">
+      <Directory Id="VST3Dir" Name="VST3">
+        <Directory Id="BundleDir" Name="RingMod.vst3">
+          <Directory Id="ContentsDir" Name="Contents">
+            <Directory Id="WinBinDir" Name="x86_64-win">
+              <Component Id="Comp_VST3DLL" Guid="A3C7E5D1-9B24-4F8A-B361-D7E29C541082">
+                <File Id="File_VST3DLL"
+                      Source="$(var.BuildArtefacts)\VST3\RingMod.vst3\Contents\x86_64-win\RingMod.vst3" />
+              </Component>
+            </Directory>
+            <Directory Id="VST3ResourcesDir" Name="Resources">
+              <Component Id="Comp_ModuleInfo" Guid="B4D8F621-3A57-4E9C-A082-E3F14D762193">
+                <File Id="File_ModuleInfo"
+                      Source="$(var.BuildArtefacts)\VST3\RingMod.vst3\Contents\Resources\moduleinfo.json" />
+              </Component>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Standalone app under %ProgramFiles%\AudioDSP\RingMod\ -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="AudioDSPDir" Name="AudioDSP">
+        <Directory Id="AppDir" Name="RingMod">
+          <Component Id="Comp_Standalone" Guid="C5E9F732-4B68-5FAD-C193-F4F25E873204">
+            <File Id="File_Standalone"
+                  Source="$(var.BuildArtefacts)\Standalone\RingMod.exe" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+  </Fragment>
+
+</Wix>
