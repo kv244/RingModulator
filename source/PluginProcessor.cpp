@@ -189,6 +189,7 @@ int RingModAudioProcessor::drainScopeData (float* dest, int maxSamples) noexcept
     return size1 + size2;
 }
 
+// DAW entry point: JUCE calls this once to instantiate the processor when the plugin is loaded.
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new RingModAudioProcessor();
