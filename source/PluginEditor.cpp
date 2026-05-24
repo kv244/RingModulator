@@ -1,28 +1,45 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-// JUCE default rotary angles (clockwise from 12-o'clock)
+// Default JUCE rotary knob sweep: starts at 216° (≈ 7-o'clock) and ends at 504° (≈ 5-o'clock).
+// These must match the startAngle / endAngle passed to GlowKnobLookAndFeel::drawRotarySlider.
 static const float kRotStart = juce::MathConstants<float>::pi * 1.2f;  // 216°
 static const float kRotEnd   = juce::MathConstants<float>::pi * 2.8f;  // 504°
 
-// ========================= GlowKnobLookAndFeel =========================
+// =============================================================================
+// GlowKnobLookAndFeel
+// =============================================================================
 
+/**
+ * Custom rotary slider renderer.
+ *
+ * Layers (back to front):
+ *  1. Dark circular fill — the knob body background
+ *  2. Track arc          — dim full-range arc showing the total sweep
+ *  3. Wide glow arc      — broad, semi-transparent active arc for a bloom effect
+ *  4. Sharp active arc   — narrow, fully-opaque active arc for crisp definition
+ *  5. Gradient inner body — raised-looking knob face with a subtle gradient
+ *  6. Border ellipse     — single-pixel border around the inner body
+ *  7. Pointer rectangle  — thin bar rotated to the current value
+ *  8. Tip dot            — two-pass (glow + bright) dot at the pointer tip
+ */
 void GlowKnobLookAndFeel::drawRotarySlider (juce::Graphics& g,
                                              int x, int y, int width, int height,
                                              float pos, float startAngle, float endAngle,
                                              juce::Slider&)
 {
+    // Reduce the bounding box by 6 px on each side so the knob doesn't clip.
     auto b = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (6.0f);
-    float R  = juce::jmin (b.getWidth(), b.getHeight()) * 0.5f;
+    float R  = juce::jmin (b.getWidth(), b.getHeight()) * 0.5f;  // outer radius
     float cx = b.getCentreX();
     float cy = b.getCentreY();
-    float angle = startAngle + pos * (endAngle - startAngle);
+    float angle = startAngle + pos * (endAngle - startAngle);     // current pointer angle
 
-    // Outer dark fill
+    // --- Layer 1: outer dark fill ---
     g.setColour (juce::Colour::fromRGB (16, 20, 26));
     g.fillEllipse (cx - R, cy - R, R * 2.0f, R * 2.0f);
 
-    // Track background arc
+    // --- Layer 2: track background arc (full range, dim) ---
     {
         juce::Path p;
         p.addCentredArc (cx, cy, R * 0.80f, R * 0.80f, 0.0f, startAngle, endAngle, true);
@@ -31,7 +48,7 @@ void GlowKnobLookAndFeel::drawRotarySlider (juce::Graphics& g,
                                                 juce::PathStrokeType::rounded));
     }
 
-    // Active glow arc (wide, dim)
+    // --- Layer 3: active glow arc (wide, dim) — creates a bloom halo ---
     {
         juce::Path p;
         p.addCentredArc (cx, cy, R * 0.80f, R * 0.80f, 0.0f, startAngle, angle, true);
@@ -40,7 +57,7 @@ void GlowKnobLookAndFeel::drawRotarySlider (juce::Graphics& g,
                                                 juce::PathStrokeType::rounded));
     }
 
-    // Active arc (sharp)
+    // --- Layer 4: active arc (sharp, fully opaque) ---
     {
         juce::Path p;
         p.addCentredArc (cx, cy, R * 0.80f, R * 0.80f, 0.0f, startAngle, angle, true);
@@ -49,8 +66,8 @@ void GlowKnobLookAndFeel::drawRotarySlider (juce::Graphics& g,
                                                 juce::PathStrokeType::rounded));
     }
 
-    // Inner knob body
-    float inner = R * 0.62f;
+    // --- Layer 5 + 6: gradient inner knob body + border ---
+    float inner = R * 0.62f;  // radius of the raised knob face
     {
         juce::ColourGradient grad (juce::Colour::fromRGB (52, 63, 74), cx - inner * 0.35f, cy - inner * 0.35f,
                                    juce::Colour::fromRGB (19, 24, 31), cx + inner * 0.25f, cy + inner * 0.25f, false);
@@ -60,7 +77,7 @@ void GlowKnobLookAndFeel::drawRotarySlider (juce::Graphics& g,
     g.setColour (juce::Colour::fromRGB (58, 70, 84));
     g.drawEllipse (cx - inner, cy - inner, inner * 2.0f, inner * 2.0f, 1.0f);
 
-    // Pointer
+    // --- Layer 7: pointer rectangle (thin bar from centre toward the arc) ---
     {
         juce::Path ptr;
         ptr.addRectangle (-1.5f, -inner * 0.90f, 3.0f, inner * 0.52f);
@@ -69,27 +86,33 @@ void GlowKnobLookAndFeel::drawRotarySlider (juce::Graphics& g,
         g.fillPath (ptr);
     }
 
-    // Tip dot glow
+    // --- Layer 8: tip dot (glow pass then bright centre dot) ---
+    // Position the dot along the pointer direction, just inside the active arc.
     float dotX = cx + std::sin (angle) * inner * 0.70f;
     float dotY = cy - std::cos (angle) * inner * 0.70f;
     g.setColour (thumb.withAlpha (0.35f));
-    g.fillEllipse (dotX - 5.5f, dotY - 5.5f, 11.0f, 11.0f);
+    g.fillEllipse (dotX - 5.5f, dotY - 5.5f, 11.0f, 11.0f);  // wide, dim halo
     g.setColour (thumb);
-    g.fillEllipse (dotX - 2.5f, dotY - 2.5f,  5.0f,  5.0f);
+    g.fillEllipse (dotX - 2.5f, dotY - 2.5f,  5.0f,  5.0f);  // bright centre
 }
 
-// ========================= Editor =========================
+// =============================================================================
+// RingModAudioProcessorEditor — constructor / destructor
+// =============================================================================
 
 RingModAudioProcessorEditor::RingModAudioProcessorEditor (RingModAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
+    // ---- Frequency knob ----
     freqSlider.setLookAndFeel (&freqLAF);
     freqSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     freqSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     addAndMakeVisible (freqSlider);
+    // Attach slider to the "freq" APVTS parameter so DAW automation is reflected immediately.
     freqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.getAPVTS(), "freq", freqSlider);
 
+    // ---- Mix knob ----
     mixSlider.setLookAndFeel (&mixLAF);
     mixSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     mixSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
@@ -97,7 +120,9 @@ RingModAudioProcessorEditor::RingModAudioProcessorEditor (RingModAudioProcessor&
     mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.getAPVTS(), "mix", mixSlider);
 
-    // Waveform selector — items must match AudioParameterChoice order exactly
+    // ---- Waveform selector ComboBox ----
+    // Item IDs are 1-based (JUCE ComboBox convention).
+    // The order must match the AudioParameterChoice index order in PluginProcessor::createParameterLayout().
     waveformBox.addItem ("Sine",     1);
     waveformBox.addItem ("Saw",      2);
     waveformBox.addItem ("Square",   3);
@@ -111,15 +136,23 @@ RingModAudioProcessorEditor::RingModAudioProcessorEditor (RingModAudioProcessor&
     waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         audioProcessor.getAPVTS(), "waveform", waveformBox);
 
+    // Fixed 640×400 window; the plug-in does not support resizing.
     setSize (640, 400);
+
+    // Start the display refresh timer at 30 Hz so the oscilloscope updates smoothly.
     startTimerHz (30);
 }
 
 RingModAudioProcessorEditor::~RingModAudioProcessorEditor()
 {
+    // Detach LookAndFeel objects before they go out of scope to prevent dangling pointers.
     freqSlider.setLookAndFeel (nullptr);
     mixSlider.setLookAndFeel (nullptr);
 }
+
+// =============================================================================
+// Timer callback — scope FIFO drain + repaint
+// =============================================================================
 
 void RingModAudioProcessorEditor::timerCallback()
 {
@@ -133,7 +166,7 @@ void RingModAudioProcessorEditor::timerCallback()
 
     while ((got = audioProcessor.drainScopeData (temp, kN)) > 0)
     {
-        const int keep = kN - got;
+        const int keep = kN - got;                            // samples to preserve at the start
         if (keep > 0)
             std::memmove (displayBuf.data(), displayBuf.data() + got, (size_t) keep * sizeof (float));
         std::memcpy (displayBuf.data() + keep, temp, (size_t) got * sizeof (float));
@@ -142,61 +175,94 @@ void RingModAudioProcessorEditor::timerCallback()
     repaint();
 }
 
+// =============================================================================
+// Utility
+// =============================================================================
+
+/**
+ * Maps a frequency value in Hz to a rotary angle.
+ *
+ * The skew exponent (0.3) mirrors the NormalisableRange skew on the "freq"
+ * APVTS parameter, so the tick marks drawn by drawFreqTickMarks() are visually
+ * aligned with the knob position at each labelled frequency.
+ */
 float RingModAudioProcessorEditor::hzToAngle (float hz, float startAngle, float endAngle) noexcept
 {
     float proportion = std::pow ((hz - 20.0f) / (2000.0f - 20.0f), 0.3f);
     return startAngle + proportion * (endAngle - startAngle);
 }
 
-// ---- Feature 8: JUCE logo ----
+// =============================================================================
+// Paint helpers
+// =============================================================================
+
+/** Renders the small JUCE "J" badge in the top-right corner of the header. */
 void RingModAudioProcessorEditor::drawJuceLogo (juce::Graphics& g)
 {
     float cx = 607.0f, cy = 35.0f, r = 14.0f;
-    // Orange circle
+
+    // Orange circle background
     g.setColour (juce::Colour::fromRGB (255, 140, 0));
     g.fillEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f);
+
+    // "J" initial centred in the circle
     g.setColour (juce::Colours::white.withAlpha (0.9f));
     g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
     g.drawText ("J", (int)(cx - r), (int)(cy - r), (int)(r * 2.0f), (int)(r * 2.0f),
                 juce::Justification::centred);
-    // "JUCE" label beside circle
+
+    // "JUCE" text label to the left of the circle
     g.setColour (juce::Colour::fromRGB (200, 210, 225));
     g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
     g.drawText ("JUCE", 548, 27, 52, 18, juce::Justification::right);
 }
 
-// ---- Feature 1 + 2: digital frequency display + range label ----
+/**
+ * Draws the LED-style digital frequency display in the header area.
+ *
+ * Two sections:
+ *  - A rounded dark box showing the current frequency value in monospaced cyan text.
+ *  - A small grey "Range: 20 Hz – 2000 Hz" label to the right of the box.
+ */
 void RingModAudioProcessorEditor::drawDigitalDisplay (juce::Graphics& g)
 {
     float freq = (float) freqSlider.getValue();
 
-    // LED box
+    // LED box background and border
     juce::Rectangle<float> box (38.0f, 56.0f, 205.0f, 30.0f);
     g.setColour (juce::Colour::fromRGB (6, 18, 23));
     g.fillRoundedRectangle (box, 4.0f);
     g.setColour (juce::Colour::fromRGB (0, 72, 95));
     g.drawRoundedRectangle (box, 4.0f, 1.0f);
 
-    // Frequency value — Feature 1
+    // Frequency value in Courier New for an LED readout feel
     g.setColour (juce::Colour::fromRGB (0, 240, 255));
     g.setFont (juce::FontOptions ("Courier New", 17.0f, juce::Font::bold));
     g.drawText (juce::String (freq, 2) + " Hz", box.reduced (6.0f, 2.0f), juce::Justification::centred);
 
-    // Feature 2: range label
+    // Range label shown to the right of the LED box
     g.setColour (juce::Colour::fromRGB (88, 108, 128));
     g.setFont (juce::FontOptions (10.5f));
     g.drawText ("Range: 20 Hz - 2000 Hz", 252, 62, 195, 16, juce::Justification::left);
 }
 
-// ---- Feature 3: frequency tick marks ----
+/**
+ * Draws calibrated tick marks around the outer rim of the frequency knob.
+ *
+ * Each tick is drawn as a short radial line segment, and each is labelled
+ * with its corresponding frequency string.  The angular positions are computed
+ * with hzToAngle() so they align precisely with the knob's skewed NormalisableRange.
+ */
 void RingModAudioProcessorEditor::drawFreqTickMarks (juce::Graphics& g)
 {
-    const float cx      = 190.0f;
-    const float cy      = 200.0f;
-    const float outerR  = 120.0f;
-    const float innerR  = 111.0f;
-    const float labelR  = 135.0f;
+    // Geometry of the tick ring — must match the freqSlider bounds set in resized().
+    const float cx      = 190.0f;   // knob centre x
+    const float cy      = 200.0f;   // knob centre y
+    const float outerR  = 120.0f;   // outer end of the tick line
+    const float innerR  = 111.0f;   // inner end of the tick line
+    const float labelR  = 135.0f;   // radius at which the frequency label is centred
 
+    // Tick definitions: frequency in Hz and corresponding display string.
     struct Tick { float hz; const char* label; };
     constexpr Tick ticks[] = {
         { 20.0f,   "20"   },
@@ -205,18 +271,20 @@ void RingModAudioProcessorEditor::drawFreqTickMarks (juce::Graphics& g)
         { 600.0f,  "600"  },
         { 1000.0f, "1k"   },
         { 1500.0f, "1.5k" },
-        { 2000.0f, "kHz"  }
+        { 2000.0f, "kHz"  }   // labelled "kHz" at the 2 000 Hz endpoint
     };
 
     for (auto& t : ticks)
     {
-        float a   = hzToAngle (t.hz, kRotStart, kRotEnd);
+        float a    = hzToAngle (t.hz, kRotStart, kRotEnd);
         float sinA = std::sin (a), cosA = std::cos (a);
 
+        // Radial tick line
         g.setColour (juce::Colour::fromRGB (70, 86, 102));
         g.drawLine (cx + sinA * innerR, cy - cosA * innerR,
                     cx + sinA * outerR, cy - cosA * outerR, 1.3f);
 
+        // Frequency label centred just outside the tick
         float lx = cx + sinA * labelR;
         float ly = cy - cosA * labelR;
         g.setColour (juce::Colour::fromRGB (110, 132, 152));
@@ -225,34 +293,48 @@ void RingModAudioProcessorEditor::drawFreqTickMarks (juce::Graphics& g)
                     juce::Justification::centred);
     }
 
-    // "Carrier Frequency" label — Feature 3 companion
+    // "Carrier Frequency" caption below the knob
     g.setColour (juce::Colour::fromRGB (138, 154, 172));
     g.setFont (juce::FontOptions (13.0f));
     g.drawText ("Carrier Frequency", 88, 324, 204, 18, juce::Justification::centred);
 }
 
-// ---- Feature 4: carrier buffer oscilloscope ----
+/**
+ * Draws the carrier-waveform oscilloscope panel.
+ *
+ * Displays the most recent 256 samples from displayBuf as a continuous path
+ * with two rendering passes:
+ *  - A wide, semi-transparent pass for a soft glow effect.
+ *  - A narrow, fully-opaque pass for a crisp trace line.
+ *
+ * A ScopedSaveState / reduceClipRegion pair clips the waveform path to the
+ * inner wave area so it never draws outside the rounded box.
+ */
 void RingModAudioProcessorEditor::drawOscilloscope (juce::Graphics& g)
 {
     juce::Rectangle<float> box (302.0f, 138.0f, 128.0f, 118.0f);
 
+    // Box background and border
     g.setColour (juce::Colour::fromRGB (12, 16, 22));
     g.fillRoundedRectangle (box, 5.0f);
     g.setColour (juce::Colour::fromRGB (36, 46, 58));
     g.drawRoundedRectangle (box, 5.0f, 1.0f);
 
+    // "Carrier Buffer" label at the top of the box
     g.setColour (juce::Colour::fromRGB (78, 98, 118));
     g.setFont (juce::FontOptions (9.5f));
     g.drawText ("Carrier Buffer", box.withHeight (15.0f), juce::Justification::centred);
 
+    // Inner wave area (smaller than the box to leave padding)
     auto wave = box.reduced (6.0f, 18.0f);
     const auto& scope = displayBuf;           // message-thread-only snapshot
     const int   N     = RingModAudioProcessor::kScopeSize;
-    const int   disp  = juce::jmin (N, 256);
+    const int   disp  = juce::jmin (N, 256);  // render at most 256 points for readability
 
+    // Build the waveform path: sample index → horizontal position, amplitude → vertical position.
     juce::Path waveform;
     float midY  = wave.getCentreY();
-    float ampY  = wave.getHeight() * 0.42f;
+    float ampY  = wave.getHeight() * 0.42f;   // scale: ±1 sample maps to ±42% of wave height
 
     for (int i = 0; i < disp; ++i)
     {
@@ -266,17 +348,20 @@ void RingModAudioProcessorEditor::drawOscilloscope (juce::Graphics& g)
         juce::Graphics::ScopedSaveState ss (g);
         g.reduceClipRegion (wave.toNearestInt());
 
-        // glow pass
+        // Glow pass — wide, dim stroke for bloom
         g.setColour (juce::Colour::fromRGB (0, 155, 190).withAlpha (0.28f));
         g.strokePath (waveform, juce::PathStrokeType (4.5f));
 
-        // main line
+        // Main line — narrow, bright stroke for clarity
         g.setColour (juce::Colour::fromRGB (0, 215, 255));
         g.strokePath (waveform, juce::PathStrokeType (1.3f));
     }
 }
 
-// ---- Waveform selector label (ComboBox component sits at y=280 in resized()) ----
+/**
+ * Draws the "Waveform" text label above the ComboBox.
+ * The ComboBox itself is a child component; its position is set in resized().
+ */
 void RingModAudioProcessorEditor::drawWaveformSelector (juce::Graphics& g)
 {
     g.setColour (juce::Colour::fromRGB (110, 132, 152));
@@ -284,31 +369,36 @@ void RingModAudioProcessorEditor::drawWaveformSelector (juce::Graphics& g)
     g.drawText ("Waveform", 302, 264, 128, 14, juce::Justification::centred);
 }
 
-// ---- Feature 5 + 6: mix LED bar + value readout ----
+/**
+ * Draws the mix section: value label, percentage readout, and LED progress bar.
+ *
+ * The progress bar is rendered as a background rounded rectangle followed by
+ * a filled rectangle scaled to the current mix value (0 = no fill, 1 = full).
+ */
 void RingModAudioProcessorEditor::drawMixSection (juce::Graphics& g)
 {
     float mix = (float) mixSlider.getValue();
     int   pct = juce::roundToInt (mix * 100.0f);
 
-    // Feature 6: "Mix: X.X" label
+    // "Mix: X.X" bold label
     g.setColour (juce::Colour::fromRGB (0, 245, 115));
     g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
     g.drawText ("Mix: " + juce::String (mix, 1), 460, 57, 155, 18, juce::Justification::left);
 
-    // Feature 6: value readout
+    // Decimal + percentage readout on the line below
     g.setColour (juce::Colour::fromRGB (95, 118, 138));
     g.setFont (juce::FontOptions (10.0f));
     g.drawText ("Value: " + juce::String (mix, 1) + " (" + juce::String (pct) + "% Wet)",
                 460, 76, 165, 14, juce::Justification::left);
 
-    // Feature 5: LED bar — background
+    // LED bar background
     juce::Rectangle<float> barBg (460.0f, 94.0f, 148.0f, 10.0f);
     g.setColour (juce::Colour::fromRGB (8, 28, 16));
     g.fillRoundedRectangle (barBg, 3.0f);
     g.setColour (juce::Colour::fromRGB (18, 46, 28));
     g.drawRoundedRectangle (barBg, 3.0f, 1.0f);
 
-    // Feature 5: active fill
+    // LED bar active fill — only draw when mix > 0 to avoid a 0-width fill artefact.
     if (mix > 0.0f)
     {
         juce::Rectangle<float> fill = barBg.withWidth (barBg.getWidth() * mix);
@@ -316,22 +406,30 @@ void RingModAudioProcessorEditor::drawMixSection (juce::Graphics& g)
         g.fillRoundedRectangle (fill, 3.0f);
     }
 
-    // "0%" / "100%" edge labels
+    // "0%" and "100%" edge labels
     g.setColour (juce::Colour::fromRGB (72, 92, 108));
     g.setFont (juce::FontOptions (9.0f));
     g.drawText ("0%",   432, 92, 26, 12, juce::Justification::right);
     g.drawText ("100%", 610, 92, 30, 12, juce::Justification::left);
 
-    // "Dry/Wet Mix" label below the mix knob
+    // "Dry/Wet Mix" caption below the mix knob
     g.setColour (juce::Colour::fromRGB (138, 154, 172));
     g.setFont (juce::FontOptions (13.0f));
     g.drawText ("Dry/Wet Mix", 448, 312, 148, 18, juce::Justification::centred);
 }
 
-// ---- Feature 7: PARAMETERS panel ----
+/**
+ * Draws the PARAMETERS status strip at the bottom of the plug-in window.
+ *
+ * Displays:
+ *  - A "PARAMETERS" section label
+ *  - A cyan-dot + "freq" + current value row
+ *  - A green-dot + "mix" + current value row
+ *  - Right-aligned status text showing the active waveform and processor state
+ */
 void RingModAudioProcessorEditor::drawParamsPanel (juce::Graphics& g)
 {
-    // Dark strip
+    // Dark strip background and top separator line
     g.setColour (juce::Colour::fromRGB (12, 15, 20));
     g.fillRect (0, 350, 640, 50);
     g.setColour (juce::Colour::fromRGB (32, 40, 50));
@@ -345,7 +443,7 @@ void RingModAudioProcessorEditor::drawParamsPanel (juce::Graphics& g)
     g.setFont (juce::FontOptions (9.5f));
     g.drawText ("PARAMETERS", 16, 354, 80, 12, juce::Justification::left);
 
-    // Cyan dot + freq
+    // Cyan dot + "freq" label + current frequency value
     g.setColour (juce::Colour::fromRGB (0, 200, 240));
     g.fillEllipse (16.0f, 369.0f, 7.0f, 7.0f);
     g.setColour (juce::Colour::fromRGB (128, 150, 172));
@@ -354,7 +452,7 @@ void RingModAudioProcessorEditor::drawParamsPanel (juce::Graphics& g)
     g.setColour (juce::Colour::fromRGB (195, 210, 228));
     g.drawText (juce::String (freq, 1), 66, 365, 55, 15, juce::Justification::left);
 
-    // Green dot + mix
+    // Green dot + "mix" label + current mix value
     g.setColour (juce::Colour::fromRGB (0, 215, 105));
     g.fillEllipse (16.0f, 383.0f, 7.0f, 7.0f);
     g.setColour (juce::Colour::fromRGB (128, 150, 172));
@@ -362,21 +460,23 @@ void RingModAudioProcessorEditor::drawParamsPanel (juce::Graphics& g)
     g.setColour (juce::Colour::fromRGB (195, 210, 228));
     g.drawText (juce::String (mix, 1), 66, 379, 55, 15, juce::Justification::left);
 
-    // Status text (right side) — show active waveform
+    // Right side: active waveform name and processor readiness indicator
     g.setColour (juce::Colour::fromRGB (58, 76, 94));
     g.setFont (juce::FontOptions (9.5f));
     g.drawText ("Waveform: " + waveformBox.getText() + "  |  Phase Accumulator", 200, 365, 310, 14, juce::Justification::left);
     g.drawText ("carrierBuffer (Ready)",                                          200, 379, 200, 14, juce::Justification::left);
 }
 
-// ========================= paint / resized =========================
+// =============================================================================
+// paint / resized
+// =============================================================================
 
 void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // Background
+    // Flat dark background for the whole plug-in window
     g.fillAll (juce::Colour::fromRGB (21, 25, 31));
 
-    // Outer frame
+    // Outer rounded-rectangle frame
     {
         juce::Path frame;
         frame.addRoundedRectangle (getLocalBounds().toFloat().reduced (4.0f), 7.0f);
@@ -384,25 +484,28 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
         g.strokePath (frame, juce::PathStrokeType (2.0f));
     }
 
-    // Header gradient band
+    // Header gradient band (top 74 px fades from a slightly lighter dark to the background colour)
     {
         juce::ColourGradient hdr (juce::Colour::fromRGB (28, 34, 43), 0.0f, 0.0f,
                                    juce::Colour::fromRGB (21, 25, 31), 0.0f, 74.0f, false);
         g.setGradientFill (hdr);
         g.fillRect (0, 0, getWidth(), 74);
     }
+    // Thin separator line between the header gradient and the body
     g.setColour (juce::Colour::fromRGB (36, 44, 55));
     g.drawLine (12.0f, 74.0f, 628.0f, 74.0f, 1.0f);
 
-    // Title
+    // Plug-in title
     g.setColour (juce::Colour::fromRGB (198, 212, 228));
     g.setFont (juce::FontOptions ("Helvetica Neue", 20.0f, juce::Font::bold));
     g.drawText ("RingModAudioProcessor", 35, 17, 390, 28, juce::Justification::left);
 
+    // Subtitle / tech stack label
     g.setColour (juce::Colour::fromRGB (75, 95, 115));
     g.setFont (juce::FontOptions (10.5f));
     g.drawText ("JUCE DSP  |  Phase Accumulator", 35, 46, 220, 15, juce::Justification::left);
 
+    // Delegate each UI region to its dedicated helper
     drawJuceLogo        (g);
     drawDigitalDisplay  (g);
     drawFreqTickMarks   (g);
@@ -410,17 +513,18 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     drawWaveformSelector(g);
     drawMixSection      (g);
     drawParamsPanel     (g);
-    // Knob style (GlowKnobLookAndFeel) renders via the Slider components directly.
+    // Note: GlowKnobLookAndFeel renders the knob visuals directly during Slider::paint(),
+    // so no explicit call is needed here.
 }
 
 void RingModAudioProcessorEditor::resized()
 {
-    // Freq knob: centre at (190, 200), radius ~106
+    // Freq knob: large rotary covering a 224×230 region; visual centre lands at (190, 200).
     freqSlider.setBounds (78, 85, 224, 230);
 
-    // Mix knob: centre at (516, 218), radius ~68
+    // Mix knob: smaller rotary; visual centre lands at approximately (516, 215).
     mixSlider.setBounds (448, 130, 136, 170);
 
-    // Waveform selector: below the oscilloscope box (which ends at y=256)
+    // Waveform ComboBox: positioned below the oscilloscope box (which ends at y ≈ 256).
     waveformBox.setBounds (302, 280, 128, 26);
 }

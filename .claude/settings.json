@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/julia/Downloads/juce-8.0.13-windows/**)",
+      "Bash(dir \"C:\\\\Users\\\\julia\\\\Downloads\\\\juce-8.0.13-windows\")",
+      "Bash(cmake -B build -G \"Visual Studio 17 2022\" -A x64)",
+      "Bash(cmake --build build --config Release)",
+      "Bash(Get-ChildItem -Recurse \"C:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\build\\\\RingMod_artefacts\\\\JuceLibraryCode\")",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(Remove-Item build\\\\CMakeCache.txt -Force)",
+      "Bash(cmake -B build -G \"Visual Studio 17 2022\" -A x64 \"-DJUCE_PATH=C:/Users/julia/Downloads/juce-8.0.13-windows/JUCE\")",
+      "Bash(cmake --build \"c:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\build\" --config Release)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\installer\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"done\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\installer\")",
+      "Bash(git checkout *)",
+      "Bash(Get-ChildItem -Path build\\\\RingMod_artefacts -Recurse -Filter \"*.exe\")",
+      "Bash(Select-Object FullName)",
+      "Bash(gh release *)",
+      "Bash(git tag *)"
+    ]
+  }
+}
