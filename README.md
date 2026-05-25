@@ -17,6 +17,10 @@ A ring modulator audio plugin built with [JUCE](https://juce.com/). Multiplies t
 | Dry/Wet Mix | 0 – 1 | 1.0 | 0 = dry input only, 1 = fully ring-modulated output |
 | Waveform | Sine / Saw / Square / Triangle | Sine | Shape of the carrier oscillator |
 
+## View in Renoise
+<img width="1198" height="202" alt="image" src="https://github.com/user-attachments/assets/94902cca-59f5-4e0d-8fa1-0b67ae85162c" />
+
+
 ## How It Works
 
 Ring modulation multiplies the input signal by a carrier waveform:
