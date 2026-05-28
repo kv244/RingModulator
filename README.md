@@ -93,6 +93,8 @@ Preferences → Plug-Ins → enable "Use VST3 Plug-In Custom Folder" or point it
 #### Renoise
 Preferences → Plug-Ins/Devices → add the VST3 folder and click Re-scan. The plugin supports both mono and stereo FX tracks.
 
+A self-contained example project is included at [`examples/sample_ringMod.xrns`](examples/sample_ringMod.xrns) — open it directly in Renoise 3.5+ to hear the plugin in use (square wave bass, 342 Hz carrier, 29% wet mix).
+
 ## Project Structure
 
 ```
