@@ -498,12 +498,12 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     // Plug-in title
     g.setColour (juce::Colour::fromRGB (198, 212, 228));
     g.setFont (juce::FontOptions ("Helvetica Neue", 20.0f, juce::Font::bold));
-    g.drawText ("RingModAudioProcessor", 35, 17, 390, 28, juce::Justification::left);
+    g.drawText ("Ring Modulator", 35, 17, 390, 28, juce::Justification::left);
 
-    // Subtitle / tech stack label
+    // Subtitle — sits at y=42 so it clears the LED frequency box which starts at y=56
     g.setColour (juce::Colour::fromRGB (75, 95, 115));
     g.setFont (juce::FontOptions (10.5f));
-    g.drawText ("JUCE DSP  |  Phase Accumulator", 35, 46, 220, 15, juce::Justification::left);
+    g.drawText ("JUCE DSP  |  Phase Accumulator", 35, 42, 220, 12, juce::Justification::left);
 
     // Delegate each UI region to its dedicated helper
     drawJuceLogo        (g);
