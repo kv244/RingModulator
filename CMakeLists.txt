@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(RingMod VERSION 1.1.0)
+project(RingMod VERSION 1.1.1)
 
 # ---------------------------------------------------------------------------
 # JUCE dependency

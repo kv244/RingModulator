@@ -3,7 +3,7 @@
 [![Compile](https://github.com/kv244/RingModulator/actions/workflows/compile.yml/badge.svg)](https://github.com/kv244/RingModulator/actions/workflows/compile.yml)
 [![Lint](https://github.com/kv244/RingModulator/actions/workflows/lint.yml/badge.svg)](https://github.com/kv244/RingModulator/actions/workflows/lint.yml)
 
-**Version 1.1.0**
+**Version 1.1.1**
 
 A ring modulator audio plugin built with [JUCE](https://juce.com/). Multiplies the input signal by a selectable carrier waveform to produce classic ring modulation sidebands, with a dry/wet mix control.
 
@@ -87,7 +87,7 @@ cmake -B build -DJUCE_PATH="..." -DCOPY_PLUGIN=ON
 cmake --build build --config Release
 ```
 
-**MSI installer** — download `RingMod-v1.1.0-win64.msi` from [GitHub Releases](https://github.com/kv244/RingModulator/releases) for a one-click install to the system VST3 folder.
+**MSI installer** — download `RingMod-v1.1.1-win64.msi` from [GitHub Releases](https://github.com/kv244/RingModulator/releases) for a one-click install to the system VST3 folder.
 
 #### Ableton Live
 Preferences → Plug-Ins → enable "Use VST3 Plug-In Custom Folder" or point it at the Common Files path above. Re-scan plug-ins after copying.
@@ -119,6 +119,10 @@ ringmod/
 ```
 
 ## Changelog
+
+### 1.1.1
+- Reworked the GUI to match the Futuristic Audio Filter Figma reference: synced mix progress-bar, footer status bar with parameter pips, corner accents, scanline overlay, and richer background glow
+- Fixed CI: dropped the pinned CMake Visual Studio generator so builds auto-detect the toolset actually installed on the runner image
 
 ### 1.1.0
 - Added **Waveform** parameter: Sine, Saw, Square, Triangle carrier shapes
