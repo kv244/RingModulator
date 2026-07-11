@@ -155,7 +155,7 @@ void FuturisticLookAndFeel::drawComboBox (juce::Graphics& g, int width, int heig
 void FuturisticLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
     label.setBounds (1, 1, box.getWidth() - 30, box.getHeight() - 2);
-    label.setFont (juce::FontOptions(14.0f, juce::Font::bold));
+    label.setFont (juce::FontOptions(14.0f).withStyle ("Bold"));
 }
 
 /**
@@ -374,12 +374,12 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     g.fillRect(0, 39, getWidth(), 1);  // 1 px separator line
 
     g.setColour(juce::Colour::fromRGB(184, 212, 238));
-    g.setFont(juce::FontOptions(18.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(18.0f).withStyle ("Bold"));
     g.drawText("RING MOD", titleBar, juce::Justification::centred);
 
     // "JUCE" badge in the top-right corner of the title bar
     g.setColour(juce::Colour::fromRGB(40, 64, 96));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(12.0f).withStyle ("Bold"));
     g.drawText("JUCE", titleBar.reduced(16, 0), juce::Justification::centredRight);
 
     // --- Subtitle strip (next 20 px, below title bar) ---
@@ -390,7 +390,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     g.fillRect(0, 59, getWidth(), 1);  // 1 px separator line
 
     g.setColour(juce::Colour::fromRGB(46, 80, 112));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(11.0f).withStyle ("Bold"));
     g.drawText("JUCE DSP | Phase Accumulator", subStrip.withTrimmedLeft(16), juce::Justification::centredLeft);
 
     // =========================================================================
@@ -420,7 +420,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     // Small frame counter in the top-right corner of the box — confirms the UI is live.
     // Shows a 3-digit zero-padded number that cycles 000–999 at 30 fps.
     g.setColour(juce::Colour::fromRGB(30, 64, 96));
-    g.setFont(juce::FontOptions(8.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(8.0f));
     g.drawText(juce::String(frameCounter % 1000).paddedLeft('0', 3), freqBox.reduced(10, 5), juce::Justification::topRight);
 
     // Frequency value: show "X.XX kHz" when ≥ 1000 Hz, otherwise "X.XX Hz".
@@ -429,12 +429,12 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
         ? juce::String(freqHz / 1000.0f, 2) + " kHz"
         : juce::String(freqHz, 2) + " Hz";
     g.setColour(juce::Colour::fromRGB(0, 200, 255));
-    g.setFont(juce::FontOptions(26.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(26.0f));
     g.drawText(freqStr, freqBox, juce::Justification::centred);
 
     leftCol.removeFromTop(8);
     g.setColour(juce::Colour::fromRGB(32, 64, 80));
-    g.setFont(juce::FontOptions(9.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(9.0f));
     g.drawText("Range: 20 Hz - 2000 Hz", leftCol.removeFromTop(16), juce::Justification::topLeft);
 
     leftCol.removeFromTop(10);
@@ -442,14 +442,14 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
     leftCol.removeFromTop(10);
     g.setColour(juce::Colour::fromRGB(58, 104, 128));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(12.0f).withStyle ("Bold"));
     g.drawText("CARRIER FREQUENCY", leftCol.removeFromTop(18), juce::Justification::centred);
 
     // Min/max frequency labels below the knob caption
     leftCol.removeFromTop(8);
     auto minMaxRow = leftCol.removeFromTop(14);
     g.setColour(juce::Colour::fromRGB(30, 64, 96));
-    g.setFont(juce::FontOptions(8.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(8.0f));
     g.drawText("20", minMaxRow, juce::Justification::centredLeft);
     g.drawText("kHz", minMaxRow, juce::Justification::centredRight);
 
@@ -459,7 +459,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
     // "CARRIER BUFFER" section label
     g.setColour(juce::Colour::fromRGB(40, 72, 96));
-    g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(9.0f).withStyle ("Bold"));
     g.drawText("CARRIER BUFFER", centerCol.removeFromTop(16), juce::Justification::centred);
 
     centerCol.removeFromTop(10);
@@ -518,7 +518,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
     centerCol.removeFromTop(10);
     g.setColour(juce::Colour::fromRGB(32, 64, 80));
-    g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(10.0f));
     g.drawText("Waveform", centerCol.removeFromTop(14), juce::Justification::centredLeft);
     // waveformBox ComboBox component paints itself in the space reserved by resized()
 
@@ -532,17 +532,17 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     // "MIX:" label + large decimal value on the same row
     auto mixHeader = rightCol.removeFromTop(26);
     g.setColour(juce::Colour::fromRGB(46, 112, 80));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(12.0f).withStyle ("Bold"));
     g.drawText("MIX:", mixHeader.removeFromLeft(40), juce::Justification::centredLeft);
 
     g.setColour(juce::Colour::fromRGB(0, 255, 136));
-    g.setFont(juce::FontOptions(22.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(22.0f));
     g.drawText(juce::String(mixVal, 2), mixHeader, juce::Justification::centredRight);
 
     // "Value: X.X (XX% Wet)" detailed readout
     rightCol.removeFromTop(6);
     g.setColour(juce::Colour::fromRGB(35, 80, 64));
-    g.setFont(juce::FontOptions(9.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(9.0f));
     g.drawText("Value: " + juce::String(mixVal, 1) + " (" + juce::String(mixPct) + "% Wet)",
                 rightCol.removeFromTop(14), juce::Justification::topLeft);
 
@@ -550,7 +550,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     rightCol.removeFromTop(10);
     auto mixLabelsRow = rightCol.removeFromTop(12);
     g.setColour(juce::Colour::fromRGB(26, 56, 48));
-    g.setFont(juce::FontOptions(7.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(7.0f));
     g.drawText("0%",   mixLabelsRow, juce::Justification::centredLeft);
     g.drawText("100%", mixLabelsRow, juce::Justification::centredRight);
 
@@ -562,7 +562,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     // "DRY/WET MIX" caption below the knob
     rightCol.removeFromTop(8);
     g.setColour(juce::Colour::fromRGB(46, 96, 80));
-    g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(10.0f).withStyle ("Bold"));
     g.drawText("DRY/WET MIX", rightCol.removeFromTop(16), juce::Justification::centred);
 
     // =========================================================================
@@ -579,7 +579,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
     // "PARAMETERS" section label
     g.setColour(juce::Colour::fromRGB(30, 48, 80));
-    g.setFont(juce::FontOptions(8.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(8.0f).withStyle ("Bold"));
     g.drawText("PARAMETERS", footerContent.removeFromLeft(80), juce::Justification::centredLeft);
 
     // Helper lambda: renders a coloured pip dot + "label value" text in the footer.
@@ -589,7 +589,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
         g.setColour(c);
         g.fillEllipse(dotArea.withSizeKeepingCentre(6, 6).toFloat());
         area.removeFromLeft(4);
-        g.setFont(juce::FontOptions(8.0f, juce::Font::plain));
+        g.setFont(juce::FontOptions(8.0f));
         g.setColour(juce::Colour::fromRGB(42, 80, 96));
         g.drawText(label + " " + value, area, juce::Justification::centredLeft);
     };
@@ -600,7 +600,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     static const char* waveformNames[] = { "Sine", "Saw", "Square", "Triangle" };
     const int waveformIdx = cachedWaveformIdx;
     g.setColour(juce::Colour::fromRGB(30, 56, 72));
-    g.setFont(juce::FontOptions(8.0f, juce::Font::plain));
+    g.setFont(juce::FontOptions(8.0f));
     g.drawText(juce::String("Waveform: ") + waveformNames[waveformIdx] + " | Phase Accumulator | carrierBuffer (Ready)",
                footerContent, juce::Justification::centredRight);
 
