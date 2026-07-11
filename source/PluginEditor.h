@@ -14,8 +14,12 @@ public:
     void drawComboBox (juce::Graphics& g, int width, int height, bool isButtonDown,
                        int buttonX, int buttonY, int buttonW, int buttonH,
                        juce::ComboBox& box) override;
-                       
+
     void positionComboBoxText (juce::ComboBox& box, juce::Label& label) override;
+
+    void drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
+                           float sliderPos, float minSliderPos, float maxSliderPos,
+                           const juce::Slider::SliderStyle style, juce::Slider& slider) override;
 };
 
 class RingModAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -33,15 +37,18 @@ private:
 
     RingModAudioProcessor& audioProcessor;
     std::array<float, RingModAudioProcessor::kScopeSize> displayBuf {};
+    int frameCounter = 0;
 
     FuturisticLookAndFeel customLAF;
 
     juce::Slider   freqSlider;
     juce::Slider   mixSlider;
+    juce::Slider   mixBarSlider;
     juce::ComboBox waveformBox;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   freqAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   mixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   mixBarAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RingModAudioProcessorEditor)
