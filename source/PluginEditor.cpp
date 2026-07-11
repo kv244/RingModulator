@@ -244,16 +244,17 @@ RingModAudioProcessorEditor::RingModAudioProcessorEditor (RingModAudioProcessor&
     mixBarAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getAPVTS(), "mix", mixBarSlider);
 
-    // ---- Waveform selector ComboBox ----
-    // Item IDs are 1-based (JUCE ComboBox convention).
-    // Order must match the AudioParameterChoice index order in createParameterLayout().
-    waveformBox.addItem("Sine", 1);
-    waveformBox.addItem("Saw", 2);
-    waveformBox.addItem("Square", 3);
-    waveformBox.addItem("Triangle", 4);
-    waveformBox.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(waveformBox);
-    waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+    // Populate waveform choices directly from the AudioParameterChoice so the
+    // editor list and the parameter definition can never silently diverge.
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*> (
+            audioProcessor.getAPVTS().getParameter ("waveform")))
+    {
+        for (int i = 0; i < choiceParam->choices.size(); ++i)
+            waveformBox.addItem (choiceParam->choices[i], i + 1);
+    }
+    waveformBox.setJustificationType (juce::Justification::centredLeft);
+    addAndMakeVisible (waveformBox);
+    waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         audioProcessor.getAPVTS(), "waveform", waveformBox);
 
     // Fixed 700×470 window — the plug-in does not support resizing.
@@ -276,23 +277,37 @@ RingModAudioProcessorEditor::~RingModAudioProcessorEditor()
 
 void RingModAudioProcessorEditor::timerCallback()
 {
-    // Drain all available carrier samples from the processor's lock-free FIFO
-    // into the rolling displayBuf window (shift-left, append-right strategy).
-    // All work is done on the message thread, so no synchronisation is needed.
+    // Cache display parameter values on the message thread so paint() stays
+    // free of APVTS map lookups on every frame.
+    auto& apvts = audioProcessor.getAPVTS();
+    cachedFreqHz      = apvts.getRawParameterValue ("freq")->load (std::memory_order_relaxed);
+    cachedMixVal      = apvts.getRawParameterValue ("mix")->load  (std::memory_order_relaxed);
+    cachedWaveformIdx = juce::jlimit (0, 3, (int) std::round (
+        apvts.getRawParameterValue ("waveform")->load (std::memory_order_relaxed)));
+
+    // Drain at most one frame's worth of samples so the oscilloscope time scale
+    // stays consistent regardless of the host's sample rate (Fix #7).
+    // At 44100 Hz / 30 Hz ≈ 1470 samples/frame; at 96000 Hz ≈ 3200 samples/frame.
     static constexpr int kN = RingModAudioProcessor::kScopeSize;
+    const double sr = audioProcessor.getSampleRate();
+    const int samplesPerFrame = (sr > 0.0) ? juce::jmax (1, (int) (sr / 30.0)) : kN;
     float temp[kN];
+    int totalDrained = 0;
     int got;
-    while ((got = audioProcessor.drainScopeData(temp, kN)) > 0) {
-        const int keep = kN - got;                             // samples to preserve
+    while (totalDrained < samplesPerFrame
+        && (got = audioProcessor.drainScopeData (temp, juce::jmin (kN, samplesPerFrame - totalDrained))) > 0)
+    {
+        const int keep = kN - got;
         if (keep > 0)
-            std::memmove(displayBuf.data(), displayBuf.data() + got, (size_t)keep * sizeof(float));
-        std::memcpy(displayBuf.data() + keep, temp, (size_t)got * sizeof(float));
+            std::memmove (displayBuf.data(), displayBuf.data() + got, (size_t) keep * sizeof (float));
+        std::memcpy (displayBuf.data() + keep, temp, (size_t) got * sizeof (float));
+        totalDrained += got;
     }
 
-    // Increment the frame counter so the Hz readout box shows a live "heartbeat" number.
     ++frameCounter;
     repaint();
 }
+
 
 // =============================================================================
 // paint
@@ -385,14 +400,11 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     // with 24 px horizontal and 20 px vertical padding.
     // The width is split equally into three columns with 16 px gutters.
 
-    auto contentArea = getLocalBounds().withTrimmedTop(60).withTrimmedBottom(34).reduced(24, 20);
-    int colWidth = (contentArea.getWidth() - 32) / 3;
-
-    auto leftCol   = contentArea.removeFromLeft(colWidth);
-    contentArea.removeFromLeft(16);                            // gutter
-    auto centerCol = contentArea.removeFromLeft(colWidth);
-    contentArea.removeFromLeft(16);                            // gutter
-    auto rightCol  = contentArea;
+    // Column bounds are pre-computed in resized(); take local mutable copies here
+    // so removeFromTop() calls below do not mutate the stored member rectangles.
+    auto leftCol   = colLeft;
+    auto centerCol = colCenter;
+    auto rightCol  = colRight;
 
     // =========================================================================
     // LEFT COLUMN — Carrier frequency knob + digital readout
@@ -412,7 +424,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText(juce::String(frameCounter % 1000).paddedLeft('0', 3), freqBox.reduced(10, 5), juce::Justification::topRight);
 
     // Frequency value: show "X.XX kHz" when ≥ 1000 Hz, otherwise "X.XX Hz".
-    float freqHz = audioProcessor.getAPVTS().getRawParameterValue("freq")->load();
+    float freqHz = cachedFreqHz;
     juce::String freqStr = freqHz >= 1000.0f
         ? juce::String(freqHz / 1000.0f, 2) + " kHz"
         : juce::String(freqHz, 2) + " Hz";
@@ -514,7 +526,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
     // RIGHT COLUMN — Dry/wet mix knob + LED bar + readouts
     // =========================================================================
 
-    float mixVal = audioProcessor.getAPVTS().getRawParameterValue("mix")->load();
+    float mixVal = cachedMixVal;
     int   mixPct = juce::roundToInt(mixVal * 100.0f);
 
     // "MIX:" label + large decimal value on the same row
@@ -586,8 +598,7 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
     // Right-aligned status text: active waveform + processor readiness
     static const char* waveformNames[] = { "Sine", "Saw", "Square", "Triangle" };
-    int waveformIdx = juce::jlimit(0, 3, (int) std::round(
-        audioProcessor.getAPVTS().getRawParameterValue("waveform")->load()));
+    const int waveformIdx = cachedWaveformIdx;
     g.setColour(juce::Colour::fromRGB(30, 56, 72));
     g.setFont(juce::FontOptions(8.0f, juce::Font::plain));
     g.drawText(juce::String("Waveform: ") + waveformNames[waveformIdx] + " | Phase Accumulator | carrierBuffer (Ready)",
@@ -626,32 +637,33 @@ void RingModAudioProcessorEditor::paint (juce::Graphics& g)
 
 void RingModAudioProcessorEditor::resized()
 {
-    // Mirror the same 3-column layout geometry used in paint() so component bounds
-    // align precisely with the regions reserved by the "paints itself here" comments.
+    // Compute the 3-column layout geometry once and store it in member variables
+    // so paint() can read the column bounds directly instead of recomputing them.
     auto contentArea = getLocalBounds().withTrimmedTop(60).withTrimmedBottom(34).reduced(24, 20);
-    int colWidth = (contentArea.getWidth() - 32) / 3;
+    const int colWidth = (contentArea.getWidth() - 32) / 3;
 
-    auto leftCol   = contentArea.removeFromLeft(colWidth);
-    contentArea.removeFromLeft(16);
-    auto centerCol = contentArea.removeFromLeft(colWidth);
-    contentArea.removeFromLeft(16);
-    auto rightCol  = contentArea;
+    colLeft   = contentArea.removeFromLeft (colWidth);
+    contentArea.removeFromLeft (16);   // gutter
+    colCenter = contentArea.removeFromLeft (colWidth);
+    contentArea.removeFromLeft (16);   // gutter
+    colRight  = contentArea;
 
+    // Use local copies for component placement (consuming removeFromTop() calls).
     // ---- Left column: freq knob ----
-    // Skip 74 px (readout box + range label + padding) then place the 152×152 knob.
-    leftCol.removeFromTop(74);
-    freqSlider.setBounds(leftCol.removeFromTop(152).withSizeKeepingCentre(152, 152));
+    auto lc = colLeft;
+    lc.removeFromTop (74);   // readout box + range label + padding
+    freqSlider.setBounds (lc.removeFromTop (152).withSizeKeepingCentre (152, 152));
 
     // ---- Centre column: waveform ComboBox ----
-    // Skip 186 px (section label + scope box + padding) then place the 168×36 selector.
-    centerCol.removeFromTop(186);
-    waveformBox.setBounds(centerCol.removeFromTop(36).withSizeKeepingCentre(168, 36));
+    auto cc = colCenter;
+    cc.removeFromTop (186);  // section label + scope box + padding
+    waveformBox.setBounds (cc.removeFromTop (36).withSizeKeepingCentre (168, 36));
 
     // ---- Right column: mix LED bar + mix knob ----
-    // Skip 72 px (header text rows + labels) then place the 9 px LED bar.
-    rightCol.removeFromTop(72);
-    mixBarSlider.setBounds(rightCol.removeFromTop(9));
-    // Skip 14 px padding then place the 116×116 rotary knob.
-    rightCol.removeFromTop(14);
-    mixSlider.setBounds(rightCol.removeFromTop(116).withSizeKeepingCentre(116, 116));
+    auto rc = colRight;
+    rc.removeFromTop (72);   // header text rows + labels
+    mixBarSlider.setBounds (rc.removeFromTop (9));
+    rc.removeFromTop (14);   // padding
+    mixSlider.setBounds (rc.removeFromTop (116).withSizeKeepingCentre (116, 116));
 }
+

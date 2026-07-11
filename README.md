@@ -66,7 +66,7 @@ processBlock()                 timerCallback()
                                  └─ repaint() ──► paint() reads displayBuf
 ```
 
-The rolling window is maintained by a shift-left / append-right `memmove` + `memcpy` strategy, so the oscilloscope always shows the most recent 512 carrier samples regardless of the host buffer size.
+The rolling window is maintained by a shift-left / append-right `memmove` + `memcpy` strategy, so the oscilloscope always shows the most recent 512 carrier samples. The drain is capped to at most one frame's worth of samples (`sampleRate / 30`) so the displayed time window stays consistent across different host sample rates.
 
 ### Why 30 Hz?
 
@@ -137,7 +137,8 @@ ringmod/
 ├── README.md
 ├── LICENSE
 ├── assets/
-│   └── icon.svg
+│   ├── icon.svg
+│   └── JUCE Plugin Development Overview.docx   # Reference doc for JUCE best practices
 ├── installer/
 │   └── RingMod.wxs        # WiX v4 MSI installer definition
 ├── .github/workflows/
@@ -151,6 +152,18 @@ ringmod/
 ```
 
 ## Changelog
+
+### 1.1.2
+- Applied JUCE best-practice improvements (no behavioural change for end users):
+  - Standalone settings file moved from the working directory to `%APPDATA%\RingMod\ringmod.ini` (reliable cross-DAW path)
+  - `processBlock` now guards against hosts delivering blocks larger than `samplesPerBlock` via `jassert` + `jmin`
+  - All `std::atomic<float>::load()` calls on the audio thread now use `std::memory_order_relaxed`
+  - `AudioParameterFloat` / `AudioParameterChoice` updated to the `juce::ParameterID { id, version }` constructor (JUCE 7+ form)
+  - Replaced `JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING` with the semantically correct `JUCE_VST3_CAN_REPLACE_VST2=0`
+  - `resized()` now stores column bounds as member variables; `paint()` reads them directly instead of recomputing the layout geometry
+  - Oscilloscope FIFO drain capped to `sampleRate / 30` samples per frame for consistent time-scale across sample rates
+  - `ComboBox` waveform items now populated dynamically from the `AudioParameterChoice` choices list
+  - Added JUCE Plugin Development Overview reference document to `assets/`
 
 ### 1.1.1
 - Reworked the GUI to match the Futuristic Audio Filter Figma reference: synced mix progress-bar, footer status bar with parameter pips, corner accents, scanline overlay, and richer background glow

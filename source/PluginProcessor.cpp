@@ -29,7 +29,8 @@ RingModAudioProcessor::RingModAudioProcessor()
     // denormalised parameter value (Hz, 0–1 float, integer index, etc.).
     if (juce::PluginHostType().getPluginLoadedAs() == juce::AudioProcessor::wrapperType_Standalone)
     {
-        juce::File iniFile (juce::File::getCurrentWorkingDirectory().getChildFile ("ringmod.ini"));
+        juce::File iniFile (juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                 .getChildFile ("RingMod/ringmod.ini"));
         if (iniFile.existsAsFile())
         {
             auto lines = juce::StringArray::fromLines (iniFile.loadFileAsString());
@@ -62,7 +63,8 @@ RingModAudioProcessor::~RingModAudioProcessor()
     // Skipped when loaded as a VST3 — the DAW handles preset save/restore.
     if (juce::PluginHostType().getPluginLoadedAs() == juce::AudioProcessor::wrapperType_Standalone)
     {
-        juce::File iniFile (juce::File::getCurrentWorkingDirectory().getChildFile ("ringmod.ini"));
+        juce::File iniFile (juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                 .getChildFile ("RingMod/ringmod.ini"));
         juce::String outStr;
         for (const auto& paramID : { "freq", "mix", "waveform" })
         {
@@ -97,11 +99,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout RingModAudioProcessor::creat
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     layout.add (std::make_unique<juce::AudioParameterFloat> (
-        "freq", "Carrier Frequency", juce::NormalisableRange<float> (20.0f, 2000.0f, 0.01f, 0.3f), 440.0f));
+        juce::ParameterID { "freq", 1 }, "Carrier Frequency",
+        juce::NormalisableRange<float> (20.0f, 2000.0f, 0.01f, 0.3f), 440.0f));
     layout.add (std::make_unique<juce::AudioParameterFloat> (
-        "mix", "Dry/Wet Mix", 0.0f, 1.0f, 1.0f));
+        juce::ParameterID { "mix", 1 }, "Dry/Wet Mix", 0.0f, 1.0f, 1.0f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (
-        "waveform", "Waveform",
+        juce::ParameterID { "waveform", 1 }, "Waveform",
         juce::StringArray { "Sine", "Saw", "Square", "Triangle" }, 0));
     return layout;
 }
@@ -148,10 +151,10 @@ void RingModAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     currentSampleRate = sampleRate;
     twoPiOverSR       = juce::MathConstants<double>::twoPi / sampleRate;
     oscillatorPhase   = 0.0;
-    currentWaveform   = (int) std::round (waveformParam->load());
+    currentWaveform   = (int) std::round (waveformParam->load (std::memory_order_relaxed));
 
     freqSmoothed.reset (sampleRate, 0.02);   // 20 ms smoothing window
-    freqSmoothed.setCurrentAndTargetValue (freqParam->load());
+    freqSmoothed.setCurrentAndTargetValue (freqParam->load (std::memory_order_relaxed));
 
     carrierBuffer.setSize (1, samplesPerBlock);
 
@@ -197,14 +200,18 @@ void RingModAudioProcessor::releaseResources()
 void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
+    if (numChannels == 0 || buffer.getNumSamples() == 0) return;
 
-    if (numChannels == 0 || numSamples == 0) return;
+    // Guard against hosts delivering a block larger than the samplesPerBlock
+    // advertised in prepareToPlay().  The jassert fires in debug builds;
+    // the jmin keeps carrierBuffer writes in-bounds in release builds too.
+    jassert (buffer.getNumSamples() <= carrierBuffer.getNumSamples());
+    const int numSamples = juce::jmin (buffer.getNumSamples(), carrierBuffer.getNumSamples());
 
     // Snap the target waveform; only apply it at the next cycle boundary.
-    const int targetWaveform = (int) std::round (waveformParam->load());
-    freqSmoothed.setTargetValue (freqParam->load());
+    const int targetWaveform = (int) std::round (waveformParam->load (std::memory_order_relaxed));
+    freqSmoothed.setTargetValue (freqParam->load (std::memory_order_relaxed));
 
     // --- Step 1: Generate carrier ---
     auto* carrierOut = carrierBuffer.getWritePointer (0);
@@ -238,7 +245,7 @@ void RingModAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     // --- Step 3: Latch dry signal before overwriting the buffer ---
     // Hand the unmodified audio to the DryWetMixer so it can blend it back in later.
     juce::dsp::AudioBlock<float> mainBlock (buffer);
-    dryWetMixer.setWetMixProportion (mixParam->load());
+    dryWetMixer.setWetMixProportion (mixParam->load (std::memory_order_relaxed));
     dryWetMixer.pushDrySamples (mainBlock);
 
     // --- Step 4: Ring modulation — SIMD-multiply every channel by the mono carrier ---

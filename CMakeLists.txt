@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.22)
 
 project(RingMod VERSION 1.1.1)
 
+# Generate compile_commands.json for clangd/linters
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # ---------------------------------------------------------------------------
 # JUCE dependency
 #
@@ -70,13 +73,15 @@ target_compile_features(RingMod PRIVATE cxx_std_17)
 # ---------------------------------------------------------------------------
 # Compile definitions
 #
-# JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
-#   Suppresses a JUCE warning that fires when the numeric VST3 parameter IDs
-#   do not match the APVTS string IDs; this is expected when using
-#   AudioParameterChoice and string-keyed APVTS parameters together.
+# JUCE_VST3_CAN_REPLACE_VST2=0
+#   RingMod has never had a VST2 release, so there is no cross-format
+#   parameter-automation conflict to resolve.  Disabling this flag suppresses
+#   the JUCE build-time #error that fires when JUCE_VST3_CAN_REPLACE_VST2 is
+#   enabled without an accompanying JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING.
+#   (Recommended by the JUCE comment in juce_audio_plugin_client_VST3.cpp.)
 # ---------------------------------------------------------------------------
 target_compile_definitions(RingMod PUBLIC
-    JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
+    JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
 # ---------------------------------------------------------------------------

@@ -143,6 +143,14 @@ private:
      */
     int frameCounter = 0;
 
+    /** Parameter display values cached in timerCallback() so paint() needs no APVTS lookups. */
+    float cachedFreqHz      = 440.0f;
+    float cachedMixVal      = 1.0f;
+    int   cachedWaveformIdx = 0;
+
+    /** Column bounds computed once in resized() and consumed as local copies in paint(). */
+    juce::Rectangle<int> colLeft, colCenter, colRight;
+
     // ---- LookAndFeel (must outlive all child components) ----
 
     /** Single LAF instance shared by all controls via setLookAndFeel() on the editor itself. */

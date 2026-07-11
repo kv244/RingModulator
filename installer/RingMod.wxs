@@ -30,6 +30,8 @@
 
     <!-- Minimal UI: Welcome → (EULA if present) → Install → Finish. -->
     <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="source\GUI.png" />
 
     <Feature Id="VST3" Title="VST3 Plugin" Level="1">
       <ComponentRef Id="Comp_VST3DLL" />
@@ -38,6 +40,7 @@
 
     <Feature Id="Standalone" Title="Standalone Application" Level="1">
       <ComponentRef Id="Comp_Standalone" />
+      <ComponentRef Id="Comp_StartMenuShortcut" />
     </Feature>
   </Package>
 
@@ -80,6 +83,14 @@
           </Component>
         </Directory>
       </Directory>
+    </StandardDirectory>
+
+    <!-- Start Menu Shortcut -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="Comp_StartMenuShortcut" Guid="A5E9F732-4B68-5FAD-C193-F4F25E873204">
+        <Shortcut Id="AppShortcut" Name="RingMod" Target="[#File_Standalone]" WorkingDirectory="AppDir" />
+        <RegistryValue Root="HKCU" Key="Software\AudioDSP\RingMod" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
     </StandardDirectory>
   </Fragment>
 
