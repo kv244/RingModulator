@@ -22,6 +22,11 @@ RingModAudioProcessor::RingModAudioProcessor()
     mixParam      = parameters.getRawParameterValue ("mix");
     waveformParam = parameters.getRawParameterValue ("waveform");
 
+    // ---- Standalone-only: restore last-used parameter values from ringmod.ini ----
+    // When running as a plug-in the DAW is responsible for restoring state via
+    // setStateInformation(), so this block is skipped in that context.
+    // The ini file is written in key=value pairs, one per line, using the raw
+    // denormalised parameter value (Hz, 0–1 float, integer index, etc.).
     if (juce::PluginHostType().getPluginLoadedAs() == juce::AudioProcessor::wrapperType_Standalone)
     {
         juce::File iniFile (juce::File::getCurrentWorkingDirectory().getChildFile ("ringmod.ini"));
@@ -30,8 +35,11 @@ RingModAudioProcessor::RingModAudioProcessor()
             auto lines = juce::StringArray::fromLines (iniFile.loadFileAsString());
             for (auto& line : lines)
             {
-                auto key = line.upToFirstOccurrenceOf ("=", false, false).trim();
+                // Parse "key=value"; skip blank lines or malformed entries gracefully.
+                auto key   = line.upToFirstOccurrenceOf ("=", false, false).trim();
                 auto value = line.fromFirstOccurrenceOf ("=", false, false).trim().getFloatValue();
+                // Convert the denormalised value back to [0,1] before applying it
+                // so setValueNotifyingHost() receives the normalised representation.
                 if (auto* param = parameters.getParameter (key))
                     param->setValueNotifyingHost (param->convertTo0to1 (value));
             }
@@ -39,8 +47,19 @@ RingModAudioProcessor::RingModAudioProcessor()
     }
 }
 
+/**
+ * Destructor: persists the current parameter values to ringmod.ini when
+ * running as a Standalone application.
+ *
+ * Each parameter is written as "paramID=denormalisedValue\n".
+ * convertFrom0to1() converts the internal [0,1] normalised value back to
+ * the user-facing range (e.g., Hz for freq, 0–1 for mix, 0–3 for waveform)
+ * so the ini file is human-readable and can be edited by hand.
+ */
 RingModAudioProcessor::~RingModAudioProcessor() 
 {
+    // ---- Standalone-only: save current parameter values to ringmod.ini ----
+    // Skipped when loaded as a VST3 — the DAW handles preset save/restore.
     if (juce::PluginHostType().getPluginLoadedAs() == juce::AudioProcessor::wrapperType_Standalone)
     {
         juce::File iniFile (juce::File::getCurrentWorkingDirectory().getChildFile ("ringmod.ini"));
@@ -49,6 +68,8 @@ RingModAudioProcessor::~RingModAudioProcessor()
         {
             if (auto* param = parameters.getParameter (paramID))
             {
+                // Convert from the internal [0,1] normalised range to the
+                // human-readable denormalised value before writing.
                 float value = param->convertFrom0to1 (param->getValue());
                 outStr << paramID << "=" << value << juce::newLine;
             }
