@@ -9,6 +9,8 @@ A ring modulator audio plugin built with [JUCE](https://juce.com/). Multiplies t
 
 ![GUI](source/GUI.png)
 
+GUI prototype on Figma Community: https://www.figma.com/community/file/1657604575511164578
+
 ## Parameters
 
 | Parameter | Range | Default | Description |
