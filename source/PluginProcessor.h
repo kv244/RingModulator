@@ -51,7 +51,10 @@ public:
 
     /** Creates and returns the plug-in GUI editor. */
     juce::AudioProcessorEditor* createEditor() override;
-    bool hasEditor() const override { return true; }
+    bool hasEditor() const override 
+    { 
+        return true; 
+    }
 
     // =========================================================================
     // Plug-in identity

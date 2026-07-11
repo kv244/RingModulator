@@ -1,0 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;600;700&display=swap');
+@import 'tailwindcss';
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #04060c; }

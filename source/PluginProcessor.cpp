@@ -21,9 +21,41 @@ RingModAudioProcessor::RingModAudioProcessor()
     freqParam     = parameters.getRawParameterValue ("freq");
     mixParam      = parameters.getRawParameterValue ("mix");
     waveformParam = parameters.getRawParameterValue ("waveform");
+
+    if (juce::PluginHostType().getPluginLoadedAs() == juce::AudioProcessor::wrapperType_Standalone)
+    {
+        juce::File iniFile (juce::File::getCurrentWorkingDirectory().getChildFile ("ringmod.ini"));
+        if (iniFile.existsAsFile())
+        {
+            auto lines = juce::StringArray::fromLines (iniFile.loadFileAsString());
+            for (auto& line : lines)
+            {
+                auto key = line.upToFirstOccurrenceOf ("=", false, false).trim();
+                auto value = line.fromFirstOccurrenceOf ("=", false, false).trim().getFloatValue();
+                if (auto* param = parameters.getParameter (key))
+                    param->setValueNotifyingHost (param->convertTo0to1 (value));
+            }
+        }
+    }
 }
 
-RingModAudioProcessor::~RingModAudioProcessor() {}
+RingModAudioProcessor::~RingModAudioProcessor() 
+{
+    if (juce::PluginHostType().getPluginLoadedAs() == juce::AudioProcessor::wrapperType_Standalone)
+    {
+        juce::File iniFile (juce::File::getCurrentWorkingDirectory().getChildFile ("ringmod.ini"));
+        juce::String outStr;
+        for (const auto& paramID : { "freq", "mix", "waveform" })
+        {
+            if (auto* param = parameters.getParameter (paramID))
+            {
+                float value = param->convertFrom0to1 (param->getValue());
+                outStr << paramID << "=" << value << juce::newLine;
+            }
+        }
+        iniFile.replaceWithText (outStr);
+    }
+}
 
 // =============================================================================
 // Parameter layout
@@ -219,7 +251,10 @@ void RingModAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
 // =============================================================================
 
 /** Returns a newly allocated editor; ownership is transferred to the caller. */
-juce::AudioProcessorEditor* RingModAudioProcessor::createEditor() { return new RingModAudioProcessorEditor (*this); }
+juce::AudioProcessorEditor* RingModAudioProcessor::createEditor() 
+{ 
+    return new RingModAudioProcessorEditor (*this); 
+}
 
 // =============================================================================
 // State persistence

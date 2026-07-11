@@ -24,7 +24,14 @@
       "Bash(Get-ChildItem -Path build\\\\RingMod_artefacts -Recurse -Filter \"*.exe\")",
       "Bash(Select-Object FullName)",
       "Bash(gh release *)",
-      "Bash(git tag *)"
+      "Bash(git tag *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "Bash(cmake --build build --config Release --parallel)",
+      "Bash(Expand-Archive -Path sample_ringMod.xrns -DestinationPath _xrns_inspect -Force)",
+      "Bash(Get-ChildItem _xrns_inspect -Recurse)",
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\examples\" -Force)",
+      "PowerShell(Move-Item -Path \"c:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\sample_ringMod.xrns\" -Destination \"c:\\\\Users\\\\julia\\\\Documents\\\\ringmod\\\\examples\\\\sample_ringMod.xrns\")"
     ]
   }
 }
