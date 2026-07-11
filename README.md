@@ -44,6 +44,38 @@ This creates sum and difference sidebands around the carrier frequency, producin
 
 > **Note:** Saw and Square carriers contain harmonics above Nyquist that will alias at high carrier frequencies. This is an intentional DSP characteristic and adds to the character of those modes.
 
+## 30 Hz UI Timer
+
+The oscilloscope display is driven by a 30 Hz `juce::Timer` running on the message thread. It exists to solve a fundamental threading constraint in audio plug-ins.
+
+### The problem: two threads, no shared locks
+
+`processBlock()` runs on the **audio thread** at real-time priority — it must never be blocked, stalled, or synchronised with a mutex. The **UI (message) thread** needs to display what the carrier oscillator is doing, but reading audio data from the UI thread directly would be a data race.
+
+### Solution: lock-free FIFO
+
+`processBlock()` pushes carrier samples into a `juce::AbstractFifo`-backed ring buffer (`scopeRing`) on the audio thread. Every ~33 ms the timer pulls those samples out into the local `displayBuf` snapshot on the message thread. `AbstractFifo` is designed for exactly this one-producer / one-consumer pattern — no mutex needed.
+
+```
+Audio thread                   Message thread (30 Hz)
+─────────────────              ──────────────────────────────
+processBlock()                 timerCallback()
+  │                              │
+  ├─ generate carrier            ├─ drainScopeData() ──► shift displayBuf left
+  └─ push to scopeRing (FIFO)    │                        append new samples
+                                 └─ repaint() ──► paint() reads displayBuf
+```
+
+The rolling window is maintained by a shift-left / append-right `memmove` + `memcpy` strategy, so the oscilloscope always shows the most recent 512 carrier samples regardless of the host buffer size.
+
+### Why 30 Hz?
+
+| Concern | Detail |
+|---|---|
+| **Smooth enough** | 30 fps is perceptually fluid for a waveform display |
+| **FIFO won't overflow** | The FIFO holds ~185 ms at 44 100 Hz (`kScopeFifoSize = 8192`). At 30 Hz the timer drains every ~33 ms — well within budget |
+| **CPU headroom** | 60 Hz would double repaint cost for little visible gain on a slowly-changing oscilloscope |
+
 ## Building
 
 ### Requirements
