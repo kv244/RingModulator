@@ -30,8 +30,6 @@
 
     <!-- Minimal UI: Welcome → (EULA if present) → Install → Finish. -->
     <ui:WixUI Id="WixUI_Minimal" />
-    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
-    <WixVariable Id="WixUIDialogBmp" Value="$(var.DialogBmp)" />
 
     <Feature Id="VST3" Title="VST3 Plugin" Level="1">
       <ComponentRef Id="Comp_VST3DLL" />

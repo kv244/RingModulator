@@ -73,8 +73,6 @@ jobs:
           wix build installer/RingMod.wxs
           -d BuildArtefacts="${{ github.workspace }}\build\RingMod_artefacts\Release"
           -d Version=${{ env.VERSION }}
-          -d LicenseRtf="${{ github.workspace }}\LICENSE.rtf"
-          -d DialogBmp="${{ github.workspace }}\source\GUI.png"
           -arch x64
           -ext WixToolset.UI.wixext/4.0.5
           -o RingMod-${{ env.VERSION }}-win64.msi
